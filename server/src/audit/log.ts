@@ -24,7 +24,10 @@ export type AuditKind =
   | 'schedule_revoked'
   | 'payment_method_linked'
   | 'category_corrected'
-  | 'model_refusal';
+  | 'model_refusal'
+  | 'limits_changed'
+  | 'payee_added'
+  | 'data_exported';
 
 /** JSON with object keys sorted, so the same data always hashes the same. */
 export function canonicalJson(value: unknown): string {
