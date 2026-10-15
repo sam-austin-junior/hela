@@ -52,9 +52,26 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return reply.status(500).send({ error: (err as Error).message });
   });
 
+  // Five wrong PINs lock PIN-protected actions for 15 minutes.
+  const PIN_MAX_FAILS = 5;
+  const PIN_LOCK_MS = 15 * 60_000;
+  const pinState = { fails: 0, lockedUntil: 0 };
   const requirePin = async (pin: unknown) => {
+    const now = clock.now().getTime();
+    if (now < pinState.lockedUntil) {
+      throw new HttpError(429, `Too many wrong PINs. Try again after ${new Date(pinState.lockedUntil).toISOString().slice(11, 16)} UTC.`);
+    }
     const s = (await getStudent(db, studentId))!;
-    if (typeof pin !== 'string' || !checkPin(pin, s.pinHash)) throw new HttpError(403, 'PIN is not right.');
+    if (typeof pin !== 'string' || !checkPin(pin, s.pinHash)) {
+      pinState.fails++;
+      if (pinState.fails >= PIN_MAX_FAILS) {
+        pinState.lockedUntil = now + PIN_LOCK_MS;
+        pinState.fails = 0;
+        await audit(db, { studentId, kind: 'student_denied', data: { reason: 'PIN locked after repeated failures' } });
+      }
+      throw new HttpError(403, 'PIN is not right.');
+    }
+    pinState.fails = 0;
   };
 
   app.get('/api/state', async () => {
@@ -156,11 +173,85 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       })
       .parse(req.body);
     const id = `pay_${randomUUID().slice(0, 8)}`;
-    await db.query(
-      'INSERT INTO payees (id, student_id, name, kind, country, currency, approved, created_at) VALUES ($1,$2,$3,$4,$5,$6,false,$7)',
-      [id, studentId, b.name, b.kind, b.country.toUpperCase(), b.currency, clock.now()],
-    );
+    await withTx(db, async (tx) => {
+      // A new payee starts unapproved; only the student can approve it, with the PIN.
+      await tx.query(
+        'INSERT INTO payees (id, student_id, name, kind, country, currency, approved, created_at) VALUES ($1,$2,$3,$4,$5,$6,false,$7)',
+        [id, studentId, b.name, b.kind, b.country.toUpperCase(), b.currency, clock.now()],
+      );
+      await appendAudit(tx, { studentId, kind: 'payee_added', data: { payeeId: id, ...b } });
+    });
     return { id };
+  });
+
+  app.post('/api/limits', async (req) => {
+    const minor = z.number().int().min(0).max(1_000_000_000_00);
+    const b = z
+      .object({
+        perPaymentMinor: minor,
+        dailyMinor: minor,
+        monthlyMinor: minor,
+        minBufferMinor: minor,
+        otpThresholdMinor: minor,
+        pin: z.string().optional(),
+      })
+      .parse(req.body);
+    if (!(b.perPaymentMinor <= b.dailyMinor && b.dailyMinor <= b.monthlyMinor)) {
+      throw new HttpError(400, 'The per-payment cap must not exceed the daily cap, nor the daily cap the monthly cap.');
+    }
+    const s = (await getStudent(db, studentId))!;
+    const next = {
+      perPaymentMinor: b.perPaymentMinor,
+      dailyMinor: b.dailyMinor,
+      monthlyMinor: b.monthlyMinor,
+      minBufferMinor: b.minBufferMinor,
+      otpThresholdMinor: b.otpThresholdMinor,
+    };
+    const prev = {
+      perPaymentMinor: s.perPaymentCapMinor,
+      dailyMinor: s.dailyCapMinor,
+      monthlyMinor: s.monthlyCapMinor,
+      minBufferMinor: s.minBufferMinor,
+      otpThresholdMinor: s.otpThresholdMinor,
+    };
+    // Loosening any control needs the PIN; tightening never does.
+    const loosens =
+      next.perPaymentMinor > prev.perPaymentMinor ||
+      next.dailyMinor > prev.dailyMinor ||
+      next.monthlyMinor > prev.monthlyMinor ||
+      next.minBufferMinor < prev.minBufferMinor ||
+      next.otpThresholdMinor > prev.otpThresholdMinor;
+    if (loosens) await requirePin(b.pin);
+    await withTx(db, async (tx) => {
+      await tx.query(
+        `UPDATE students SET per_payment_cap_minor = $2, daily_cap_minor = $3, monthly_cap_minor = $4,
+                             min_buffer_minor = $5, otp_threshold_minor = $6 WHERE id = $1`,
+        [studentId, next.perPaymentMinor, next.dailyMinor, next.monthlyMinor, next.minBufferMinor, next.otpThresholdMinor],
+      );
+      await appendAudit(tx, { studentId, kind: 'limits_changed', data: { from: prev, to: next, withPin: loosens } });
+    });
+    return { ...next, loosened: loosens };
+  });
+
+  // Everything Hela holds about the student, as one JSON file.
+  app.get('/api/export', async (_req, reply) => {
+    const q = (sql: string) => db.query(sql, [studentId]).then((r) => r.rows);
+    const { pinHash: _pin, ...student } = (await getStudent(db, studentId))!;
+    const data = {
+      exportedAt: clock.now().toISOString(),
+      student,
+      accounts: await q('SELECT id, kind, label, currency, balance_minor FROM accounts WHERE student_id = $1'),
+      transactions: await q('SELECT id, account_id, occurred_at, amount_minor, currency, payee, description, category, category_source FROM transactions WHERE student_id = $1 ORDER BY occurred_at'),
+      payees: await q('SELECT id, name, kind, country, currency, approved, created_at FROM payees WHERE student_id = $1'),
+      invoices: await q('SELECT id, issuer, reference, amount_minor, currency, due_date, status FROM invoices WHERE student_id = $1'),
+      plans: await q('SELECT id, kind, payload, created_at FROM plans WHERE student_id = $1'),
+      payments: await q('SELECT id, origin, payee_id, amount_minor, currency, debit_minor, fee_minor, status, provider_ref, created_at FROM proposals WHERE student_id = $1 ORDER BY created_at'),
+      schedules: await q('SELECT id, payee_id, amount_minor, currency, interval_days, next_run, status FROM scheduled_payments WHERE student_id = $1'),
+      conversation: (await q('SELECT messages FROM conversations WHERE student_id = $1'))[0]?.messages ?? [],
+    };
+    await audit(db, { studentId, kind: 'data_exported', data: { sections: Object.keys(data).length } });
+    reply.header('Content-Disposition', `attachment; filename="hela-my-data-${clock.today()}.json"`);
+    return data;
   });
 
   app.post('/api/payees/:id/approve', async (req) => {

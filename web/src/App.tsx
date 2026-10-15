@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, label, money, type AuditEntry, type Budget, type ChainCheck, type Proposal, type State } from './api';
 import { Markdown } from './Markdown';
 import { ProposalCard } from './ProposalCard';
+import { AddPayeeForm, LimitsDialog, PlansView, TransactionsView } from './Panels';
 
 interface ChatItem {
   role: 'user' | 'assistant' | 'error';
@@ -129,9 +130,9 @@ export default function App() {
       </header>
 
       <main className="layout">
-        <Sidebar state={state} onAction={guarded} requestPin={pin.request} />
+        <Sidebar state={state} onAction={guarded} requestPin={pin.request} notify={(m) => { setToast(m); refresh(); }} />
         <Chat state={state} onChange={refresh} />
-        <Insights refreshKey={refreshKey} />
+        <Insights refreshKey={refreshKey} invoices={state.invoices} onChange={refresh} />
       </main>
 
       {pin.dialog}
@@ -146,12 +147,15 @@ function Sidebar({
   state,
   onAction,
   requestPin,
+  notify,
 }: {
   state: State;
   onAction: (fn: () => Promise<unknown>, done?: string) => void;
   requestPin: (title: string) => Promise<string | null>;
+  notify: (msg: string) => void;
 }) {
   const l = state.student.limits;
+  const [editLimits, setEditLimits] = useState(false);
   const withPin = async (title: string, fn: (pin: string) => Promise<unknown>, done: string) => {
     const p = await requestPin(title);
     if (p) onAction(() => fn(p), done);
@@ -177,7 +181,10 @@ function Sidebar({
       </section>
 
       <section>
-        <h4>Limits the agent cannot change</h4>
+        <div className="section-head">
+          <h4>Limits the agent cannot change</h4>
+          <button className="btn small" onClick={() => setEditLimits(true)}>Edit</button>
+        </div>
         <dl className="limits">
           <dt>Per payment</dt><dd className="num">{money(l.perPaymentMinor!, 'KES')}</dd>
           <dt>Daily</dt><dd className="num">{money(l.dailyMinor!, 'KES')}</dd>
@@ -211,8 +218,28 @@ function Sidebar({
         </ul>
       </section>
 
+      {editLimits && (
+        <LimitsDialog
+          current={{
+            perPaymentMinor: l.perPaymentMinor!,
+            dailyMinor: l.dailyMinor!,
+            monthlyMinor: l.monthlyMinor!,
+            minBufferMinor: l.minBufferMinor!,
+            otpThresholdMinor: l.otpThresholdMinor!,
+          }}
+          requestPin={requestPin}
+          onClose={(msg) => {
+            setEditLimits(false);
+            if (msg) notify(msg);
+          }}
+        />
+      )}
+
       <section>
-        <h4>Payees</h4>
+        <div className="section-head">
+          <h4>Payees</h4>
+          <AddPayeeForm onDone={notify} />
+        </div>
         <ul className="list">
           {state.payees.map((p) => (
             <li key={p.id}>
@@ -274,6 +301,11 @@ function Sidebar({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section>
+        <h4>Your data</h4>
+        <a className="btn small" href="/api/export" download>Download my data (JSON)</a>
       </section>
     </aside>
   );
@@ -370,15 +402,29 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
 
 /* ── Insights: budget and audit ──────────────────────────────── */
 
-function Insights({ refreshKey }: { refreshKey: number }) {
-  const [tab, setTab] = useState<'budget' | 'audit'>('budget');
+type InsightTab = 'budget' | 'transactions' | 'plans' | 'audit';
+
+function Insights({ refreshKey, invoices, onChange }: { refreshKey: number; invoices: State['invoices']; onChange: () => void }) {
+  const [tab, setTab] = useState<InsightTab>('budget');
+  const tabs: [InsightTab, string][] = [
+    ['budget', 'Budget'],
+    ['transactions', 'Spending'],
+    ['plans', 'Plans'],
+    ['audit', 'Audit'],
+  ];
   return (
     <aside className="panel insights">
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === 'budget'} className={tab === 'budget' ? 'active' : ''} onClick={() => setTab('budget')}>Budget</button>
-        <button role="tab" aria-selected={tab === 'audit'} className={tab === 'audit' ? 'active' : ''} onClick={() => setTab('audit')}>Audit log</button>
+        {tabs.map(([id, text]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+            {text}
+          </button>
+        ))}
       </div>
-      {tab === 'budget' ? <BudgetView refreshKey={refreshKey} /> : <AuditView refreshKey={refreshKey} />}
+      {tab === 'budget' && <BudgetView refreshKey={refreshKey} />}
+      {tab === 'transactions' && <TransactionsView refreshKey={refreshKey} onChange={onChange} />}
+      {tab === 'plans' && <PlansView invoices={invoices} refreshKey={refreshKey} />}
+      {tab === 'audit' && <AuditView refreshKey={refreshKey} />}
     </aside>
   );
 }

@@ -32,7 +32,7 @@ student ─▶ web app ─▶ agent orchestrator ◀─▶ Claude (plans, explai
 | 2 · Act with confirmation | plus prepare payments | each payment needs the student, with a code over KES 10,000 |
 | 3 · Act within limits | plus run approved schedules | automatic only for approved payees under the caps; anything else falls back to tier 2 |
 
-Raising the tier needs the app PIN. Lowering it takes effect at once.
+Raising the tier or loosening a limit needs the app PIN; five wrong PINs lock these actions for 15 minutes. Lowering the tier or tightening a limit takes effect at once. New payees start unapproved. The student can download all their data as JSON.
 
 **Policy checks, in order** ([server/src/policy/engine.ts](server/src/policy/engine.ts)): tier → payee approved (and not added in the last 24 h) → per-payment, daily and monthly caps → balance minus buffer → consistency with the cited invoice → rate of requests (5 per 10 min) → duplicate key.
 
@@ -57,7 +57,7 @@ Everything in one container: `docker compose --profile app up --build`.
 ## Tests and evidence
 
 ```bash
-npm test               # 80 tests: maths, every policy check, payments, audit tampering, agent journeys
+npm test               # 92 tests: maths, every policy check, payments, audit tampering, agent journeys, API controls
 npm run evidence       # runs 12 payment scenarios in the sandbox → evidence/sandbox-log.md
 ```
 
@@ -70,6 +70,7 @@ npm run evidence       # runs 12 payment scenarios in the sandbox → evidence/s
 | `payments.test.ts` | the full flow on a real database: code entry, 3 wrong codes, duplicates and races, caps, buffer, burst, re-check at confirmation, schedules |
 | `audit.test.ts` | triggers refuse edits; an edited or deleted entry is detected even with the triggers bypassed |
 | `agent.test.ts` | injection attempts, malformed tool input, the code never reaching the model, and 5 scripted student journeys |
+| `api.test.ts` | limits and tier changes (loosening needs the PIN), PIN lockout after 5 tries, new payees start unapproved, data export, category corrections |
 | `paystack.test.ts` | live keys refused, reference format, and no second charge after a failed attempt |
 
 ## Layout

@@ -49,6 +49,46 @@ export interface AuditEntry { seq: number; at: string; kind: string; data: Recor
 export interface ChainCheck { ok: boolean; entries: number; headHash: string; firstBrokenSeq?: number; problem?: string }
 export interface TurnResult { reply: string; proposals: Proposal[]; schedules: string[]; tools: { name: string; kind: string; ok: boolean }[] }
 
+export interface Txn { id: string; occurredAt: string; amountMinor: number; currency: string; payee: string; description: string; category: string | null; categorySource: string | null }
+export interface Limits { perPaymentMinor: number; dailyMinor: number; monthlyMinor: number; minBufferMinor: number; otpThresholdMinor: number }
+export interface TuitionPlan {
+  planId?: string;
+  invoiceId: string;
+  issuer: string;
+  amountMinor: number;
+  currency: string;
+  dueDate: string;
+  sigmaDaily: number;
+  daysLeft: number;
+  weeksLeft: number;
+  rate: { low: number; today: number; high: number };
+  neededTodayKesMinor: number;
+  neededHighKesMinor: number;
+  routeName: string;
+  feeKesMinor: number;
+  savingsKesMinor: number;
+  shortfallKesMinor: number;
+  weeklyTargetKesMinor: number;
+  weeklySurplusKesMinor: number;
+  status: 'funded' | 'on_track' | 'at_risk' | 'overdue';
+  options: { kind: string; text: string; weeklyKesMinor?: number; amountKesMinor?: number }[];
+}
+export interface RouteComparison {
+  midKesPerUnit: number;
+  rateDate: string;
+  ranked: {
+    route: { id: string; routeName: string; arrivalHours: number; snapshotDate: string };
+    quote: { sendKesMinor: number; feeKesMinor: number; marginCostKesMinor: number; totalCostKesMinor: number; receivedMinor: number };
+    eligible: boolean;
+    reasons: string[];
+  }[];
+}
+
+export const CATEGORIES = [
+  'housing', 'groceries', 'eating_out', 'transport', 'airtime_data', 'tuition_fees',
+  'books_supplies', 'health', 'entertainment', 'family_support', 'savings_transfers', 'other',
+];
+
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
@@ -79,6 +119,13 @@ export const api = {
   revokeSchedule: (id: string) => call('POST', `/api/schedules/${id}/revoke`, {}),
   runSchedules: () => call<{ results: Proposal[] }>('POST', '/api/schedules/run', {}),
   linkPaymentMethod: () => call<{ url?: string; linked?: boolean }>('POST', '/api/payment-method/link', {}),
+  transactions: (month?: string) => call<Txn[]>('GET', `/api/transactions${month ? `?month=${month}` : ''}`),
+  setCategory: (id: string, category: string) => call<{ uncategorised: number }>('POST', `/api/transactions/${id}/category`, { category }),
+  addPayee: (p: { name: string; kind: string; country: string; currency: string }) => call<{ id: string }>('POST', '/api/payees', p),
+  setLimits: (l: Limits & { pin?: string }) => call<Limits & { loosened: boolean }>('POST', '/api/limits', l),
+  planTuition: (invoiceId: string) => call<TuitionPlan>('POST', `/api/invoices/${invoiceId}/plan`, {}),
+  latestPlan: () => call<TuitionPlan | null>('GET', '/api/plans/latest'),
+  compareRoutes: (amount: string, currency: string) => call<RouteComparison>('POST', '/api/routes/compare', { amount, currency }),
   audit: (limit = 60) => call<AuditEntry[]>('GET', `/api/audit?limit=${limit}`),
   verifyAudit: () => call<ChainCheck>('GET', '/api/audit/verify'),
 };
