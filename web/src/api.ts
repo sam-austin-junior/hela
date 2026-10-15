@@ -47,6 +47,11 @@ export interface Budget {
 }
 export interface AuditEntry { seq: number; at: string; kind: string; data: Record<string, unknown>; prev_hash: string; hash: string }
 export interface ChainCheck { ok: boolean; entries: number; headHash: string; firstBrokenSeq?: number; problem?: string }
+export type TurnStep =
+  | { type: 'thinking' }
+  | { type: 'tool_start'; name: string; kind: string }
+  | { type: 'tool_end'; name: string; kind: string; ok: boolean };
+
 export interface TurnResult { reply: string; proposals: Proposal[]; schedules: string[]; tools: { name: string; kind: string; ok: boolean }[] }
 
 export interface Txn { id: string; occurredAt: string; amountMinor: number; currency: string; payee: string; description: string; category: string | null; categorySource: string | null }
@@ -109,6 +114,38 @@ export const api = {
     return call<Budget>('GET', `/api/budget?${q}`);
   },
   chat: (message: string) => call<TurnResult>('POST', '/api/chat', { message }),
+  /** The chat turn as a stream: `onStep` sees each step as the agent works. */
+  async chatStream(message: string, onStep: (e: TurnStep) => void): Promise<TurnResult> {
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok || !res.body) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error((json as { error?: string }).error ?? `Request failed (${res.status})`);
+    }
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buffer = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += value;
+      let cut: number;
+      while ((cut = buffer.indexOf('\n\n')) >= 0) {
+        const frame = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        const event = /^event: (.+)$/m.exec(frame)?.[1];
+        const data = /^data: (.+)$/m.exec(frame)?.[1];
+        if (!event || !data) continue;
+        const payload = JSON.parse(data);
+        if (event === 'step') onStep(payload);
+        else if (event === 'done') return payload as TurnResult;
+        else if (event === 'error') throw new Error(payload.error);
+      }
+    }
+    throw new Error('The connection closed before Hela finished.');
+  },
   resetChat: () => call('POST', '/api/chat/reset', {}),
   proposal: (id: string) => call<Proposal>('GET', `/api/proposals/${id}`),
   confirm: (id: string, otp?: string) => call<Proposal>('POST', `/api/proposals/${id}/confirm`, { otp }),

@@ -18,24 +18,41 @@ export interface ModelClient {
   create(params: { system: string; tools: Anthropic.Tool[]; messages: MessageParam[] }): Promise<Message>;
 }
 
-export function anthropicModel(): ModelClient {
-  const client = new Anthropic();
+export function anthropicModel(client: Pick<Anthropic, 'beta'> = new Anthropic()): ModelClient {
+  // Server-side refusal fallback is on by default. If this account or model
+  // rejects the option, carry on without it rather than failing the student.
+  let useFallback = true;
+  const send = (params: { system: string; tools: Anthropic.Tool[]; messages: MessageParam[] }) =>
+    client.beta.messages.create({
+      model: config.model,
+      max_tokens: 16000,
+      ...(useFallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}),
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'medium' },
+      system: [{ type: 'text', text: params.system, cache_control: { type: 'ephemeral' } }],
+      tools: params.tools,
+      messages: params.messages,
+    } as Anthropic.Beta.MessageCreateParamsNonStreaming);
   return {
-    create: ({ system, tools, messages }) =>
-      client.beta.messages.create({
-        model: config.model,
-        max_tokens: 16000,
-        // A declined request is retried server-side on the recommended fallback model.
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'medium' },
-        system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-        tools,
-        messages,
-      } as Anthropic.Beta.MessageCreateParamsNonStreaming),
+    async create(params) {
+      try {
+        return await send(params);
+      } catch (err) {
+        if (useFallback && err instanceof Anthropic.BadRequestError && /fallback/i.test(err.message)) {
+          useFallback = false;
+          return send(params);
+        }
+        throw err;
+      }
+    },
   };
 }
+
+/** Progress a turn reports while it runs, for the app to show live. */
+export type TurnEvent =
+  | { type: 'thinking' }
+  | { type: 'tool_start'; name: string; kind: string }
+  | { type: 'tool_end'; name: string; kind: string; ok: boolean };
 
 export interface TurnResult {
   reply: string;
@@ -70,6 +87,7 @@ export async function runTurn(
   adapter: PaymentAdapter,
   studentId: string,
   userText: string,
+  onEvent: (e: TurnEvent) => void = () => {},
 ): Promise<TurnResult> {
   const student = await getStudent(db, studentId);
   if (!student) throw new Error('Unknown student');
@@ -84,6 +102,7 @@ export async function runTurn(
   let reply = '';
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    onEvent({ type: 'thinking' });
     const res = await model.create({ system: SYSTEM_PROMPT, tools: API_TOOLS, messages });
 
     if (res.stop_reason === 'refusal') {
@@ -110,8 +129,10 @@ export async function runTurn(
 
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
     for (const call of calls) {
-      const out = await runTool(call.name, call.input, ctx);
       const kind = TOOL_KIND.get(call.name) ?? 'unknown';
+      onEvent({ type: 'tool_start', name: call.name, kind });
+      const out = await runTool(call.name, call.input, ctx);
+      onEvent({ type: 'tool_end', name: call.name, kind, ok: !out.isError });
       tools.push({ name: call.name, kind, ok: !out.isError });
       await audit(db, { studentId, kind: 'tool_call', data: { tool: call.name, toolKind: kind, input: call.input, ok: !out.isError } });
       results.push({ type: 'tool_result', tool_use_id: call.id, content: out.content, is_error: out.isError || undefined });

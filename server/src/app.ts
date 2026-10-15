@@ -133,6 +133,32 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return runTurn(db, deps.model, adapter, studentId, message);
   });
 
+  // The same turn as /api/chat, streamed as server-sent events so the app can
+  // show each step while the agent works: event "step", then one "done".
+  app.post('/api/chat/stream', async (req, reply) => {
+    if (!deps.model) {
+      return reply.status(503).send({ error: 'The AI model is not configured. Set ANTHROPIC_API_KEY and restart.' });
+    }
+    const { message } = z.object({ message: z.string().min(1).max(4000) }).parse(req.body);
+    reply.hijack();
+    const res = reply.raw;
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    const send = (event: string, data: unknown) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    try {
+      const result = await runTurn(db, deps.model, adapter, studentId, message, (e) => send('step', e));
+      send('done', result);
+    } catch (err) {
+      send('error', { error: (err as Error).message });
+    } finally {
+      res.end();
+    }
+  });
+
   app.post('/api/chat/reset', async () => {
     await resetConversation(db, studentId);
     return { ok: true };

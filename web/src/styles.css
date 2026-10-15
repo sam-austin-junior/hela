@@ -231,3 +231,15 @@ select.mini { padding: 2px 6px; font-size: 12px; }
 .limit-field input { width: 150px; text-align: right; }
 .side .section-head { flex-wrap: wrap; }
 .tabs button { padding: 12px 6px; font-size: 13px; }
+
+/* ── Live agent steps ── */
+.msg.live { padding: 10px 14px; }
+.msg.live .typing { padding: 4px 0; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.step { display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+.step-running .step-dot { background: var(--brand); animation: blink 1.2s infinite ease-in-out; }
+.step-ok .step-dot { background: var(--good); }
+.step-error .step-dot { background: var(--bad); }
+.step-running { color: var(--ink); }
+.step.tool-act.step-ok .step-dot { background: var(--warn); }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, label, money, type AuditEntry, type Budget, type ChainCheck, type Proposal, type State } from './api';
+import { api, label, money, type AuditEntry, type Budget, type ChainCheck, type Proposal, type State, type TurnStep } from './api';
 import { Markdown } from './Markdown';
 import { ProposalCard } from './ProposalCard';
 import { AddPayeeForm, LimitsDialog, PlansView, TransactionsView } from './Panels';
@@ -17,7 +17,29 @@ const SUGGESTIONS = [
   'How am I doing this month?',
   'Pay my November rent invoice',
   'Help me build my credit',
+  'Nisaidie kupanga karo yangu',
 ];
+
+/** What each tool is doing, in the student's terms. */
+const STEP_TEXT: Record<string, string> = {
+  get_overview: 'Checking your accounts and limits',
+  list_transactions: 'Looking through your transactions',
+  get_budget: 'Adding up your budget',
+  list_invoices: 'Reading your invoices',
+  list_payees: 'Checking your saved payees',
+  get_fx_rate: "Getting today's exchange rate",
+  compare_routes: 'Comparing ways to send money',
+  plan_tuition: 'Building a tuition plan',
+  credit_checklist: 'Preparing your credit checklist',
+  propose_payment: 'Sending a payment to the policy engine',
+  propose_schedule: 'Setting up a schedule for your approval',
+};
+
+interface LiveStep {
+  name: string;
+  kind: string;
+  state: 'running' | 'ok' | 'error';
+}
 
 const TIERS = ['Read only', 'Advise', 'Act with confirmation', 'Act within limits'];
 
@@ -317,9 +339,23 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
   const [items, setItems] = useState<ChatItem[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [live, setLive] = useState<LiveStep[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [items, busy]);
+  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [items, busy, live]);
+
+  const onStep = (e: TurnStep) => {
+    if (e.type === 'tool_start') setLive((l) => [...l, { name: e.name, kind: e.kind, state: 'running' }]);
+    if (e.type === 'tool_end') {
+      setLive((l) => {
+        const i = l.findIndex((s) => s.name === e.name && s.state === 'running');
+        if (i < 0) return l;
+        const next = [...l];
+        next[i] = { ...next[i]!, state: e.ok ? 'ok' : 'error' };
+        return next;
+      });
+    }
+  };
 
   const send = async (text: string) => {
     const message = text.trim();
@@ -327,14 +363,16 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
     setItems((x) => [...x, { role: 'user', text: message }]);
     setInput('');
     setBusy(true);
+    setLive([]);
     try {
-      const r = await api.chat(message);
+      const r = await api.chatStream(message, onStep);
       setItems((x) => [...x, { role: 'assistant', text: r.reply, proposals: r.proposals, tools: r.tools }]);
       onChange();
     } catch (e) {
       setItems((x) => [...x, { role: 'error', text: (e as Error).message }]);
     } finally {
       setBusy(false);
+      setLive([]);
     }
   };
 
@@ -382,7 +420,24 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
             {m.proposals?.map((p, j) => <ProposalCard key={`${i}-${j}`} initial={p} onChange={onChange} />)}
           </div>
         ))}
-        {busy && <div className="msg msg-assistant typing"><span /><span /><span /></div>}
+        {busy && (
+          <div className="msg msg-assistant live" aria-live="polite">
+            {live.length === 0 ? (
+              <div className="typing"><span /><span /><span /></div>
+            ) : (
+              <ul className="steps">
+                {live.map((s, i) => (
+                  <li key={i} className={`step step-${s.state} tool-${s.kind}`}>
+                    <span className="step-dot" aria-hidden />
+                    {STEP_TEXT[s.name] ?? s.name.replace(/_/g, ' ')}
+                    {s.state === 'running' ? '…' : s.state === 'error' ? ' (failed)' : ''}
+                  </li>
+                ))}
+                {live.every((s) => s.state !== 'running') && <li className="step step-running"><span className="step-dot" aria-hidden />Writing the answer…</li>}
+              </ul>
+            )}
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 

@@ -57,7 +57,7 @@ Everything in one container: `docker compose --profile app up --build`.
 ## Tests and evidence
 
 ```bash
-npm test               # 92 tests: maths, every policy check, payments, audit tampering, agent journeys, API controls
+npm test               # 97 tests: maths, every policy check, payments, audit tampering, agent journeys, API controls
 npm run evidence       # runs 12 payment scenarios in the sandbox → evidence/sandbox-log.md
 ```
 
@@ -71,6 +71,7 @@ npm run evidence       # runs 12 payment scenarios in the sandbox → evidence/s
 | `audit.test.ts` | triggers refuse edits; an edited or deleted entry is detected even with the triggers bypassed |
 | `agent.test.ts` | injection attempts, malformed tool input, the code never reaching the model, and 5 scripted student journeys |
 | `api.test.ts` | limits and tier changes (loosening needs the PIN), PIN lockout after 5 tries, new payees start unapproved, data export, category corrections |
+| `stream.test.ts` | live step events in order, the streamed chat endpoint, an error event instead of a hang, and the fallback-option retry |
 | `paystack.test.ts` | live keys refused, reference format, and no second charge after a failed attempt |
 
 ## Layout
