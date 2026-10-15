@@ -4,44 +4,44 @@ import { Markdown } from './Markdown';
 import { ProposalCard } from './ProposalCard';
 import { AddPayeeForm, LimitsDialog, PlansView, TransactionsView } from './Panels';
 
+// One screen, one job: talk to Hela. Money facts sit beside the chat, and
+// every safety control lives in a single drawer, in plain words.
+
 interface ChatItem {
   role: 'user' | 'assistant' | 'error';
   text: string;
   proposals?: Proposal[];
-  tools?: { name: string; kind: string; ok: boolean }[];
 }
 
 const SUGGESTIONS = [
   'Plan my spring tuition',
-  'What is the cheapest way to pay my USD 350 registration fee?',
+  'Cheapest way to pay my USD 350 fee?',
   'How am I doing this month?',
-  'Pay my November rent invoice',
-  'Help me build my credit',
   'Nisaidie kupanga karo yangu',
+];
+
+/** The four tiers, as a student would say them. */
+const TIERS = [
+  { name: 'Just look', text: 'Hela can see your money but never plans or pays.' },
+  { name: 'Advise me', text: 'Hela makes plans and comparisons. It never pays.' },
+  { name: 'Ask me first', text: 'Hela prepares payments. You confirm every one.' },
+  { name: 'Pay within my limits', text: 'Hela pays approved payees on its own, under your limits. Anything else, it asks.' },
 ];
 
 /** What each tool is doing, in the student's terms. */
 const STEP_TEXT: Record<string, string> = {
-  get_overview: 'Checking your accounts and limits',
+  get_overview: 'Checking your accounts',
   list_transactions: 'Looking through your transactions',
   get_budget: 'Adding up your budget',
-  list_invoices: 'Reading your invoices',
-  list_payees: 'Checking your saved payees',
+  list_invoices: 'Reading your bills',
+  list_payees: 'Checking who you can pay',
   get_fx_rate: "Getting today's exchange rate",
   compare_routes: 'Comparing ways to send money',
   plan_tuition: 'Building a tuition plan',
   credit_checklist: 'Preparing your credit checklist',
-  propose_payment: 'Sending a payment to the policy engine',
-  propose_schedule: 'Setting up a schedule for your approval',
+  propose_payment: 'Asking the safety check about a payment',
+  propose_schedule: 'Setting up a repeating payment for you to approve',
 };
-
-interface LiveStep {
-  name: string;
-  kind: string;
-  state: 'running' | 'ok' | 'error';
-}
-
-const TIERS = ['Read only', 'Advise', 'Act with confirmation', 'Act within limits'];
 
 /* ── PIN prompt ──────────────────────────────────────────────── */
 
@@ -55,7 +55,7 @@ function usePin() {
 function PinDialog({ title, onDone }: { title: string; onDone: (pin: string | null) => void }) {
   const [pin, setPin] = useState('');
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="modal-backdrop top-layer" role="dialog" aria-modal="true" aria-label={title}>
       <form className="modal" onSubmit={(e) => { e.preventDefault(); onDone(pin); }}>
         <h2>{title}</h2>
         <p className="muted">Enter your app PIN to continue.</p>
@@ -76,6 +76,7 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const pin = usePin();
 
   const refresh = useCallback(async () => {
@@ -91,7 +92,7 @@ export default function App() {
   useEffect(() => {
     refresh();
     if (new URLSearchParams(location.search).get('linked')) {
-      setToast('Payment method linked.');
+      setToast('Card linked.');
       history.replaceState(null, '', '/');
     }
   }, [refresh]);
@@ -116,226 +117,66 @@ export default function App() {
     return <div className="loading">{loadError ? `Cannot reach the Hela server: ${loadError}` : 'Loading…'}</div>;
   }
 
-  const changeTier = async (tier: number) => {
-    if (tier === state.student.tier) return;
-    let p: string | null | undefined;
-    if (tier > state.student.tier) {
-      p = await pin.request(`Raise tier to “${TIERS[tier]}”`);
-      if (p === null) return;
-    }
-    guarded(() => api.setTier(tier, p ?? undefined), `Tier is now “${TIERS[tier]}”.`);
-  };
+  const tier = TIERS[state.student.tier]!;
 
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
           <span className="logo" aria-hidden>H</span>
-          <div>
-            <div className="brand-name">Hela</div>
-            <div className="brand-sub">Student finance agent</div>
-          </div>
+          <span className="brand-name">Hela</span>
+          <span className="pill pill-muted" title="All money movement is simulated">Demo</span>
         </div>
-        <div className="top-right">
-          <span className="pill pill-muted" title="All money movement is in a sandbox">
-            Sandbox · {state.provider === 'paystack_test' ? 'Paystack test mode' : 'simulated payments'}
+        <button className="safety-chip" onClick={() => setSettingsOpen(true)} title="Safety settings">
+          <ShieldIcon />
+          <span className="safety-text">
+            <span className="safety-label">Hela can</span>
+            <span className="safety-value">{tier.name}</span>
           </span>
-          <label className="tier-select">
-            <span>Permission tier</span>
-            <select value={state.student.tier} onChange={(e) => changeTier(Number(e.target.value))}>
-              {TIERS.map((t, i) => (
-                <option key={t} value={i}>{i} · {t}</option>
-              ))}
-            </select>
-          </label>
-        </div>
+        </button>
       </header>
 
       <main className="layout">
-        <Sidebar state={state} onAction={guarded} requestPin={pin.request} notify={(m) => { setToast(m); refresh(); }} />
-        <Chat state={state} onChange={refresh} />
-        <Insights refreshKey={refreshKey} invoices={state.invoices} onChange={refresh} />
+        <Chat state={state} onChange={refresh} onOpenSettings={() => setSettingsOpen(true)} />
+        <MoneyPanel state={state} refreshKey={refreshKey} onChange={refresh} />
       </main>
 
+      {settingsOpen && (
+        <SettingsDrawer
+          state={state}
+          onClose={() => setSettingsOpen(false)}
+          onAction={guarded}
+          requestPin={pin.request}
+          notify={(m) => {
+            setToast(m);
+            refresh();
+          }}
+        />
+      )}
       {pin.dialog}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }
 
-/* ── Sidebar: accounts, limits, invoices, payees, schedules ──── */
-
-function Sidebar({
-  state,
-  onAction,
-  requestPin,
-  notify,
-}: {
-  state: State;
-  onAction: (fn: () => Promise<unknown>, done?: string) => void;
-  requestPin: (title: string) => Promise<string | null>;
-  notify: (msg: string) => void;
-}) {
-  const l = state.student.limits;
-  const [editLimits, setEditLimits] = useState(false);
-  const withPin = async (title: string, fn: (pin: string) => Promise<unknown>, done: string) => {
-    const p = await requestPin(title);
-    if (p) onAction(() => fn(p), done);
-  };
-  const link = () =>
-    onAction(async () => {
-      const r = await api.linkPaymentMethod();
-      if (r.url) location.href = r.url;
-    }, state.provider === 'simulated' ? 'Sandbox card linked.' : undefined);
-
+function ShieldIcon() {
   return (
-    <aside className="panel side">
-      <section>
-        <h3>Hello, {state.student.firstName}</h3>
-        <ul className="accounts">
-          {state.accounts.map((a) => (
-            <li key={a.id}>
-              <span>{a.label}</span>
-              <span className="num">{money(a.balanceMinor, a.currency)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <div className="section-head">
-          <h4>Limits the agent cannot change</h4>
-          <button className="btn small" onClick={() => setEditLimits(true)}>Edit</button>
-        </div>
-        <dl className="limits">
-          <dt>Per payment</dt><dd className="num">{money(l.perPaymentMinor!, 'KES')}</dd>
-          <dt>Daily</dt><dd className="num">{money(l.dailyMinor!, 'KES')}</dd>
-          <dt>Monthly</dt><dd className="num">{money(l.monthlyMinor!, 'KES')}</dd>
-          <dt>Keep at least</dt><dd className="num">{money(l.minBufferMinor!, 'KES')}</dd>
-          <dt>Code needed over</dt><dd className="num">{money(l.otpThresholdMinor!, 'KES')}</dd>
-        </dl>
-        <div className="method">
-          {state.paymentMethod ? (
-            <span className="muted">Paying with {state.paymentMethod}</span>
-          ) : (
-            <button className="btn small" onClick={link}>Link a test card</button>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <h4>Invoices</h4>
-        <ul className="list">
-          {state.invoices.map((i) => (
-            <li key={i.id}>
-              <div className="list-main">
-                <span>{i.issuer}</span>
-                <span className="num">{money(i.amountMinor, i.currency)}</span>
-              </div>
-              <div className="list-sub">
-                Due {i.dueDate} · {i.status === 'paid' ? <span className="good">paid</span> : 'open'}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {editLimits && (
-        <LimitsDialog
-          current={{
-            perPaymentMinor: l.perPaymentMinor!,
-            dailyMinor: l.dailyMinor!,
-            monthlyMinor: l.monthlyMinor!,
-            minBufferMinor: l.minBufferMinor!,
-            otpThresholdMinor: l.otpThresholdMinor!,
-          }}
-          requestPin={requestPin}
-          onClose={(msg) => {
-            setEditLimits(false);
-            if (msg) notify(msg);
-          }}
-        />
-      )}
-
-      <section>
-        <div className="section-head">
-          <h4>Payees</h4>
-          <AddPayeeForm onDone={notify} />
-        </div>
-        <ul className="list">
-          {state.payees.map((p) => (
-            <li key={p.id}>
-              <div className="list-main">
-                <span>{p.name}</span>
-                {p.approved ? (
-                  <span className="pill pill-good">approved</span>
-                ) : (
-                  <button className="btn small" onClick={() => withPin(`Approve ${p.name}`, (pin) => api.approvePayee(p.id, pin), `${p.name} approved.`)}>
-                    Approve
-                  </button>
-                )}
-              </div>
-              <div className="list-sub">{p.currency} · {label(p.kind)} · added {p.createdAt.slice(0, 10)}</div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {state.proposals.length > 0 && (
-        <section>
-          <h4>Recent payments</h4>
-          <div className="stack">
-            {state.proposals.slice(0, 6).map((p) => (
-              <ProposalCard key={`${p.id}-${p.status}`} initial={p} onChange={() => onAction(async () => {})} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section>
-        <div className="section-head">
-          <h4>Scheduled payments</h4>
-          {state.schedules.some((s) => s.status === 'active') && (
-            <button className="btn small" onClick={() => onAction(() => api.runSchedules(), 'Ran the payments that are due.')}>Run due now</button>
-          )}
-        </div>
-        {state.schedules.length === 0 && <p className="muted small">None yet. Ask Hela to set up weekly tuition savings.</p>}
-        <ul className="list">
-          {state.schedules.map((s) => (
-            <li key={s.id}>
-              <div className="list-main">
-                <span>{s.payee.name}</span>
-                <span className="num">{money(s.amountMinor, s.currency)}</span>
-              </div>
-              <div className="list-sub">
-                Every {s.intervalDays} days · next {s.nextRun} · {label(s.status)}
-              </div>
-              <div className="row">
-                {s.status === 'pending_approval' && (
-                  <button className="btn small primary" onClick={() => withPin('Approve this schedule', (pin) => api.approveSchedule(s.id, pin), 'Schedule approved.')}>
-                    Approve
-                  </button>
-                )}
-                {s.status !== 'revoked' && (
-                  <button className="btn small" onClick={() => onAction(() => api.revokeSchedule(s.id), 'Schedule revoked.')}>Revoke</button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h4>Your data</h4>
-        <a className="btn small" href="/api/export" download>Download my data (JSON)</a>
-      </section>
-    </aside>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
   );
 }
 
 /* ── Chat ────────────────────────────────────────────────────── */
 
-function Chat({ state, onChange }: { state: State; onChange: () => void }) {
+interface LiveStep {
+  name: string;
+  kind: string;
+  state: 'running' | 'ok' | 'error';
+}
+
+function Chat({ state, onChange, onOpenSettings }: { state: State; onChange: () => void; onOpenSettings: () => void }) {
   const [items, setItems] = useState<ChatItem[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -366,7 +207,7 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
     setLive([]);
     try {
       const r = await api.chatStream(message, onStep);
-      setItems((x) => [...x, { role: 'assistant', text: r.reply, proposals: r.proposals, tools: r.tools }]);
+      setItems((x) => [...x, { role: 'assistant', text: r.reply, proposals: r.proposals }]);
       onChange();
     } catch (e) {
       setItems((x) => [...x, { role: 'error', text: (e as Error).message }]);
@@ -383,40 +224,34 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
 
   return (
     <section className="panel chat">
-      <div className="chat-head">
-        <div>
-          <h3>Ask Hela</h3>
-          <p className="muted small">Tier {state.student.tier} · {state.student.tierName}</p>
+      {items.length > 0 && (
+        <div className="chat-head">
+          <button className="link" onClick={reset}>Start over</button>
         </div>
-        {items.length > 0 && <button className="btn small" onClick={reset}>New conversation</button>}
-      </div>
+      )}
 
       <div className="messages" aria-live="polite">
         {items.length === 0 && (
           <div className="empty">
-            <p className="empty-title">Plan tuition, send money abroad, see where your money goes, and build credit.</p>
-            {!state.modelReady && (
-              <p className="error">The AI model is not configured on the server. Set ANTHROPIC_API_KEY and restart. The panels still work.</p>
-            )}
+            <p className="hello">Hi {state.student.firstName}.</p>
+            <p className="empty-title">What would you like to sort out today?</p>
             <div className="chips">
               {SUGGESTIONS.map((s) => (
                 <button key={s} className="chip" onClick={() => send(s)} disabled={!state.modelReady}>{s}</button>
               ))}
             </div>
+            {!state.modelReady && (
+              <p className="notice">Chat is off in this copy: the server has no AI key. Your money panel and settings still work.</p>
+            )}
+            <p className="muted small">
+              Hela only pays when your safety settings allow it.{' '}
+              <button className="link" onClick={onOpenSettings}>See what it can do</button>
+            </p>
           </div>
         )}
         {items.map((m, i) => (
           <div key={i} className={`msg msg-${m.role}`}>
             {m.role === 'assistant' ? <Markdown text={m.text} /> : <p>{m.text}</p>}
-            {m.tools && m.tools.length > 0 && (
-              <div className="tools">
-                {m.tools.map((t, j) => (
-                  <span key={j} className={`tool tool-${t.kind}`} title={`${t.kind} tool${t.ok ? '' : ' (error)'}`}>
-                    {t.name.replace(/_/g, ' ')}
-                  </span>
-                ))}
-              </div>
-            )}
             {m.proposals?.map((p, j) => <ProposalCard key={`${i}-${j}`} initial={p} onChange={onChange} />)}
           </div>
         ))}
@@ -433,7 +268,9 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
                     {s.state === 'running' ? '…' : s.state === 'error' ? ' (failed)' : ''}
                   </li>
                 ))}
-                {live.every((s) => s.state !== 'running') && <li className="step step-running"><span className="step-dot" aria-hidden />Writing the answer…</li>}
+                {live.every((s) => s.state !== 'running') && (
+                  <li className="step step-running"><span className="step-dot" aria-hidden />Writing the answer…</li>
+                )}
               </ul>
             )}
           </div>
@@ -445,7 +282,7 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={state.modelReady ? 'Ask about tuition, transfers, your budget or credit…' : 'AI model not configured'}
+          placeholder={state.modelReady ? 'Ask Hela anything about your money…' : 'Chat is off (no AI key)'}
           disabled={busy || !state.modelReady}
           aria-label="Message Hela"
         />
@@ -455,20 +292,19 @@ function Chat({ state, onChange }: { state: State; onChange: () => void }) {
   );
 }
 
-/* ── Insights: budget and audit ──────────────────────────────── */
+/* ── Your money: Overview, Plans, Activity ───────────────────── */
 
-type InsightTab = 'budget' | 'transactions' | 'plans' | 'audit';
+type MoneyTab = 'overview' | 'plans' | 'activity';
 
-function Insights({ refreshKey, invoices, onChange }: { refreshKey: number; invoices: State['invoices']; onChange: () => void }) {
-  const [tab, setTab] = useState<InsightTab>('budget');
-  const tabs: [InsightTab, string][] = [
-    ['budget', 'Budget'],
-    ['transactions', 'Spending'],
+function MoneyPanel({ state, refreshKey, onChange }: { state: State; refreshKey: number; onChange: () => void }) {
+  const [tab, setTab] = useState<MoneyTab>('overview');
+  const tabs: [MoneyTab, string][] = [
+    ['overview', 'Overview'],
     ['plans', 'Plans'],
-    ['audit', 'Audit'],
+    ['activity', 'Activity'],
   ];
   return (
-    <aside className="panel insights">
+    <aside className="panel money">
       <div className="tabs" role="tablist">
         {tabs.map(([id, text]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
@@ -476,77 +312,123 @@ function Insights({ refreshKey, invoices, onChange }: { refreshKey: number; invo
           </button>
         ))}
       </div>
-      {tab === 'budget' && <BudgetView refreshKey={refreshKey} />}
-      {tab === 'transactions' && <TransactionsView refreshKey={refreshKey} onChange={onChange} />}
-      {tab === 'plans' && <PlansView invoices={invoices} refreshKey={refreshKey} />}
-      {tab === 'audit' && <AuditView refreshKey={refreshKey} />}
+      {tab === 'overview' && <Overview state={state} refreshKey={refreshKey} />}
+      {tab === 'plans' && <PlansView invoices={state.invoices} refreshKey={refreshKey} />}
+      {tab === 'activity' && <Activity state={state} refreshKey={refreshKey} onChange={onChange} />}
     </aside>
   );
 }
 
-function BudgetView({ refreshKey }: { refreshKey: number }) {
-  const [currency, setCurrency] = useState('KES');
+function daysUntil(date: string, today: string) {
+  return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5);
+}
+
+function Overview({ state, refreshKey }: { state: State; refreshKey: number }) {
   const [b, setB] = useState<Budget | null>(null);
   useEffect(() => {
-    api.budget(undefined, currency).then(setB).catch(() => setB(null));
-  }, [currency, refreshKey]);
-  if (!b) return <p className="muted pad">Loading…</p>;
-  const s = b.summary;
-  const max = Math.max(...s.byCategory.map((c) => c.spendMinor), 1);
+    api.budget(undefined, 'KES').then(setB).catch(() => setB(null));
+  }, [refreshKey]);
+
+  const total = state.accounts.filter((a) => a.currency === 'KES').reduce((s, a) => s + a.balanceMinor, 0);
+  const bills = [...state.invoices].sort((x, y) => Number(x.status === 'paid') - Number(y.status === 'paid') || x.dueDate.localeCompare(y.dueDate));
+  const top = b?.summary.byCategory.slice(0, 4) ?? [];
+  const max = Math.max(...top.map((c) => c.spendMinor), 1);
+
   return (
     <div className="pad">
-      <div className="section-head">
-        <h4>{new Date(`${s.month}-01T00:00:00`).toLocaleString('en-GB', { month: 'long', year: 'numeric' })}</h4>
-        <select value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Show in currency">
-          {['KES', 'USD', 'GBP', 'EUR'].map((c) => <option key={c}>{c}</option>)}
-        </select>
+      <div className="balance">
+        <span className="muted small">You have</span>
+        <strong className="balance-value num">{money(total, 'KES')}</strong>
+        <details className="accounts-detail">
+          <summary className="small">{state.accounts.length} accounts</summary>
+          <ul className="accounts">
+            {state.accounts.map((a) => (
+              <li key={a.id}>
+                <span>{a.label}</span>
+                <span className="num">{money(a.balanceMinor, a.currency)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
-      <div className="stats">
-        <div><span className="muted small">In</span><strong className="num">{money(s.incomeMinor, s.currency)}</strong></div>
-        <div><span className="muted small">Out</span><strong className="num">{money(s.spendMinor, s.currency)}</strong></div>
-        <div><span className="muted small">Net</span><strong className={`num ${s.netMinor < 0 ? 'bad' : 'good'}`}>{money(s.netMinor, s.currency)}</strong></div>
-      </div>
-      {b.alerts.length > 0 && (
-        <ul className="alerts">
-          {b.alerts.map((a, i) => <li key={i}>{a.text}</li>)}
+
+      <section>
+        <h4>Bills</h4>
+        <ul className="bills">
+          {bills.map((i) => {
+            const d = daysUntil(i.dueDate, state.today);
+            return (
+              <li key={i.id}>
+                <div>
+                  <div>{i.issuer.replace(' (sandbox)', '')}</div>
+                  <div className="muted small">
+                    {i.status === 'paid' ? 'Paid' : d < 0 ? 'Overdue' : d === 0 ? 'Due today' : `Due in ${d} days`}
+                  </div>
+                </div>
+                <span className={`num ${i.status === 'paid' ? 'muted' : 'strong'}`}>{money(i.amountMinor, i.currency)}</span>
+              </li>
+            );
+          })}
         </ul>
+      </section>
+
+      {b && (
+        <section>
+          <h4>This month</h4>
+          <div className="inout">
+            <span>In <strong className="num">{money(b.summary.incomeMinor, 'KES')}</strong></span>
+            <span>Out <strong className="num">{money(b.summary.spendMinor, 'KES')}</strong></span>
+          </div>
+          {b.alerts.map((a, i) => <p key={i} className="alert-line">{a.text.replace(/^./, (c) => c.toUpperCase())}.</p>)}
+          <ul className="bars">
+            {top.map((c) => (
+              <li key={c.category}>
+                <div className="bar-label">
+                  <span>{label(c.category)}</span>
+                  <span className="num">{money(c.spendMinor, 'KES')}</span>
+                </div>
+                <div className="bar-track"><div className="bar-fill" style={{ width: `${(c.spendMinor / max) * 100}%` }} /></div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
-      <ul className="bars">
-        {s.byCategory.map((c) => {
-          const budget = currency === 'KES' ? b.budgets.find((x) => x.category === c.category) : undefined;
-          const over = budget && c.spendMinor > budget.monthlyMinor;
-          return (
-            <li key={c.category}>
-              <div className="bar-label">
-                <span>{label(c.category)}</span>
-                <span className="num">{money(c.spendMinor, s.currency)}</span>
-              </div>
-              <div className="bar-track">
-                <div className={`bar-fill ${over ? 'over' : ''}`} style={{ width: `${(c.spendMinor / max) * 100}%` }} />
-                {budget && <div className="bar-budget" style={{ left: `${Math.min((budget.monthlyMinor / max) * 100, 100)}%` }} title={`Budget ${money(budget.monthlyMinor, 'KES')}`} />}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <h4>Recurring</h4>
-      <ul className="list">
-        {b.recurring.map((r) => (
-          <li key={r.payee}>
-            <div className="list-main">
-              <span>{r.payee}</span>
-              <span className="num">{money(r.typicalMinor, r.currency)}</span>
-            </div>
-            <div className="list-sub">Every ~{r.intervalDays} days · next {r.nextDate}</div>
-          </li>
-        ))}
-      </ul>
-      {b.uncategorised > 0 && <p className="muted small">{b.uncategorised} transactions not yet categorised.</p>}
     </div>
   );
 }
 
-function AuditView({ refreshKey }: { refreshKey: number }) {
+function Activity({ state, refreshKey, onChange }: { state: State; refreshKey: number; onChange: () => void }) {
+  const [view, setView] = useState<'payments' | 'spending' | 'log'>('payments');
+  return (
+    <div>
+      <div className="segmented" role="radiogroup" aria-label="Show">
+        {(
+          [
+            ['payments', 'Payments'],
+            ['spending', 'Spending'],
+            ['log', 'Safety log'],
+          ] as const
+        ).map(([id, text]) => (
+          <button key={id} role="radio" aria-checked={view === id} className={view === id ? 'on' : ''} onClick={() => setView(id)}>
+            {text}
+          </button>
+        ))}
+      </div>
+      {view === 'payments' && (
+        <div className="pad">
+          {state.proposals.length === 0 && <p className="muted small">No payments yet. Ask Hela to pay a bill and it will appear here.</p>}
+          <div className="stack">
+            {state.proposals.map((p) => <ProposalCard key={`${p.id}-${p.status}`} initial={p} onChange={onChange} />)}
+          </div>
+        </div>
+      )}
+      {view === 'spending' && <TransactionsView refreshKey={refreshKey} onChange={onChange} />}
+      {view === 'log' && <SafetyLog refreshKey={refreshKey} />}
+    </div>
+  );
+}
+
+function SafetyLog({ refreshKey }: { refreshKey: number }) {
   const [rows, setRows] = useState<AuditEntry[]>([]);
   const [check, setCheck] = useState<ChainCheck | null>(null);
   useEffect(() => {
@@ -555,29 +437,25 @@ function AuditView({ refreshKey }: { refreshKey: number }) {
   }, [refreshKey]);
   return (
     <div className="pad">
-      <div className={`chain ${check?.ok ? 'ok' : 'bad'}`}>
-        {check ? (
-          check.ok ? (
-            <>Hash chain verified · {check.entries} entries · head <span className="mono">{check.headHash.slice(0, 12)}…</span></>
-          ) : (
-            <>Chain broken at entry {check.firstBrokenSeq}: {check.problem}</>
-          )
-        ) : (
-          'Checking…'
-        )}
-      </div>
-      <a className="btn small" href="/api/audit/export" download>Export log (JSON)</a>
+      <p className={`chain ${check?.ok ? 'ok' : 'bad'}`}>
+        {check
+          ? check.ok
+            ? `Every action is recorded and nothing has been altered (${check.entries} entries).`
+            : `Warning: entry ${check.firstBrokenSeq} was altered. ${check.problem}`
+          : 'Checking…'}
+      </p>
       <ol className="audit">
         {rows.map((r) => (
           <li key={r.seq}>
             <div className="audit-head">
               <span className={`kind kind-${r.kind}`}>{label(r.kind)}</span>
-              <span className="muted small">#{r.seq} · {new Date(r.at).toLocaleTimeString('en-GB')}</span>
+              <span className="muted small">{new Date(r.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <div className="audit-body">{summarise(r)}</div>
           </li>
         ))}
       </ol>
+      <a className="link small" href="/api/audit/export" download>Download the full log</a>
     </div>
   );
 }
@@ -586,21 +464,184 @@ function summarise(r: AuditEntry): string {
   const d = r.data as Record<string, any>;
   switch (r.kind) {
     case 'tool_call':
-      return `${d.toolKind} tool ${d.tool}${d.ok ? '' : ' (error)'}`;
+      return `Hela used: ${String(d.tool).replace(/_/g, ' ')}${d.ok ? '' : ' (failed)'}`;
     case 'policy_decision':
-      return `${d.stage}: ${d.outcome} — ${d.reason ?? ''}`;
+      return `${d.outcome === 'allow' ? 'Allowed' : d.outcome === 'confirm' ? 'Asked you' : d.outcome === 'deny' ? 'Blocked' : 'Repeat ignored'}: ${d.reason ?? ''}`;
     case 'proposal_created':
-      return `${d.proposalId}: ${(d.amountMinor / 100).toFixed(2)} ${d.currency}`;
+      return `${(d.amountMinor / 100).toFixed(2)} ${d.currency} proposed`;
     case 'payment_executed':
-      return `${d.provider} ref ${d.providerRef}`;
+      return `Paid, reference ${d.providerRef}`;
     case 'payment_failed':
       return d.reason;
     case 'tier_changed':
-      return `${d.from} → ${d.to}`;
+      return `${TIERS[d.from]?.name ?? d.from} → ${TIERS[d.to]?.name ?? d.to}`;
     default:
-      return Object.entries(d)
-        .slice(0, 3)
-        .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-        .join(' · ');
+      return '';
   }
+}
+
+/* ── Safety settings drawer ──────────────────────────────────── */
+
+function SettingsDrawer({
+  state,
+  onClose,
+  onAction,
+  requestPin,
+  notify,
+}: {
+  state: State;
+  onClose: () => void;
+  onAction: (fn: () => Promise<unknown>, done?: string) => void;
+  requestPin: (title: string) => Promise<string | null>;
+  notify: (msg: string) => void;
+}) {
+  const l = state.student.limits;
+  const [editLimits, setEditLimits] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const changeTier = async (to: number) => {
+    if (to === state.student.tier) return;
+    let p: string | null | undefined;
+    if (to > state.student.tier) {
+      p = await requestPin(`Let Hela “${TIERS[to]!.name.toLowerCase()}”`);
+      if (p === null) return;
+    }
+    onAction(() => api.setTier(to, p ?? undefined), `Hela can now: ${TIERS[to]!.name.toLowerCase()}.`);
+  };
+
+  const withPin = async (title: string, fn: (pin: string) => Promise<unknown>, done: string) => {
+    const p = await requestPin(title);
+    if (p) onAction(() => fn(p), done);
+  };
+
+  const link = () =>
+    onAction(async () => {
+      const r = await api.linkPaymentMethod();
+      if (r.url) location.href = r.url;
+    }, state.provider === 'simulated' ? 'Demo card linked.' : undefined);
+
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Safety settings" onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-head">
+          <h2>Safety settings</h2>
+          <button className="btn small" onClick={onClose}>Done</button>
+        </div>
+        <p className="muted small">Only you can change these. Hela can't, even if someone asks it to.</p>
+
+        <section>
+          <h4>What Hela is allowed to do</h4>
+          <div className="tier-options" role="radiogroup">
+            {TIERS.map((t, i) => (
+              <button key={t.name} role="radio" aria-checked={state.student.tier === i} className={`tier-option ${state.student.tier === i ? 'on' : ''}`} onClick={() => changeTier(i)}>
+                <span className="tier-radio" aria-hidden />
+                <span>
+                  <span className="tier-name">{t.name}</span>
+                  <span className="tier-text">{t.text}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="muted small">Giving Hela more freedom needs your PIN. Taking it away never does.</p>
+        </section>
+
+        <section>
+          <div className="section-head">
+            <h4>Spending limits</h4>
+            <button className="link" onClick={() => setEditLimits(true)}>Change</button>
+          </div>
+          <dl className="limits">
+            <dt>Largest single payment</dt><dd className="num">{money(l.perPaymentMinor!, 'KES')}</dd>
+            <dt>Per day</dt><dd className="num">{money(l.dailyMinor!, 'KES')}</dd>
+            <dt>Per month</dt><dd className="num">{money(l.monthlyMinor!, 'KES')}</dd>
+            <dt>Always keep</dt><dd className="num">{money(l.minBufferMinor!, 'KES')}</dd>
+            <dt>Ask for a code above</dt><dd className="num">{money(l.otpThresholdMinor!, 'KES')}</dd>
+          </dl>
+        </section>
+
+        <section>
+          <div className="section-head">
+            <h4>Who Hela can pay</h4>
+            <AddPayeeForm onDone={notify} />
+          </div>
+          <ul className="list">
+            {state.payees.map((p) => (
+              <li key={p.id} className="list-main">
+                <span>
+                  {p.name.replace(' (sandbox)', '')}
+                  <span className="muted small"> · {p.currency}</span>
+                </span>
+                {p.approved ? (
+                  <span className="pill pill-good">Approved</span>
+                ) : (
+                  <button className="btn small" onClick={() => withPin(`Approve ${p.name}`, (pin) => api.approvePayee(p.id, pin), `${p.name} approved.`)}>
+                    Approve
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {state.schedules.length > 0 && (
+          <section>
+            <div className="section-head">
+              <h4>Repeating payments</h4>
+              {state.schedules.some((s) => s.status === 'active') && (
+                <button className="link" onClick={() => onAction(() => api.runSchedules(), 'Ran the payments that are due.')}>Run due now</button>
+              )}
+            </div>
+            <ul className="list">
+              {state.schedules.map((s) => (
+                <li key={s.id}>
+                  <div className="list-main">
+                    <span>{s.payee.name}</span>
+                    <span className="num">{money(s.amountMinor, s.currency)}</span>
+                  </div>
+                  <div className="list-sub">Every {s.intervalDays} days · next {s.nextRun} · {label(s.status)}</div>
+                  <div className="row">
+                    {s.status === 'pending_approval' && (
+                      <button className="btn small primary" onClick={() => withPin('Approve this repeating payment', (pin) => api.approveSchedule(s.id, pin), 'Approved.')}>Approve</button>
+                    )}
+                    {s.status !== 'revoked' && <button className="btn small" onClick={() => onAction(() => api.revokeSchedule(s.id), 'Stopped.')}>Stop</button>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section>
+          <h4>Card and data</h4>
+          <div className="list-main">
+            <span>{state.paymentMethod ?? 'No card linked'}</span>
+            {!state.paymentMethod && <button className="btn small" onClick={link}>Link a test card</button>}
+          </div>
+          <a className="link small" href="/api/export" download>Download everything Hela knows about you</a>
+        </section>
+
+        {editLimits && (
+          <LimitsDialog
+            current={{
+              perPaymentMinor: l.perPaymentMinor!,
+              dailyMinor: l.dailyMinor!,
+              monthlyMinor: l.monthlyMinor!,
+              minBufferMinor: l.minBufferMinor!,
+              otpThresholdMinor: l.otpThresholdMinor!,
+            }}
+            requestPin={requestPin}
+            onClose={(msg) => {
+              setEditLimits(false);
+              if (msg) notify(msg);
+            }}
+          />
+        )}
+      </aside>
+    </div>
+  );
 }
