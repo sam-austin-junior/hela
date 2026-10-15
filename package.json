@@ -1,0 +1,23 @@
+{
+  "name": "hela",
+  "private": true,
+  "description": "Hela — an AI agent for cross-border and student finance, with permission tiers enforced outside the model.",
+  "license": "MIT",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "migrate": "npm run migrate -w server",
+    "seed": "npm run seed -w server",
+    "dev": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "npm run start -w server",
+    "test": "npm test -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "evidence": "npm run evidence -w server"
+  }
+}

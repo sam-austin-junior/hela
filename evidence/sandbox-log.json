@@ -1,0 +1,135 @@
+{
+  "generatedAt": "2026-10-15T11:22:50.718Z",
+  "provider": "simulated",
+  "model": null,
+  "scenarios": 12,
+  "passed": 12,
+  "auditChain": {
+    "ok": true,
+    "entries": 37,
+    "headHash": "870791b658642f68f87c22be1e738911b2233766b8006ad12ca939a1600cee68"
+  },
+  "rows": [
+    {
+      "step": "Tier 1 · pay USD 350 registration invoice",
+      "expected": "denied (tier)",
+      "status": "denied",
+      "policy": "deny: Your tier is \"Advise\", which does not allow payments.",
+      "pays": "USD 350.00",
+      "debit": "KES 46,140.87",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Tier 2 · same invoice",
+      "expected": "needs confirmation + code",
+      "status": "needs_confirmation",
+      "policy": "confirm: Your tier needs your confirmation for every payment.",
+      "pays": "USD 350.00",
+      "debit": "KES 46,140.87",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Tier 2 · student confirms with the code",
+      "expected": "executed",
+      "status": "executed",
+      "policy": "allow: You confirmed this payment.",
+      "pays": "USD 350.00",
+      "debit": "KES 46,140.87",
+      "provider_ref": "SIM-5bb1bebb6359",
+      "pass": true
+    },
+    {
+      "step": "Injection · pay an account named in the invoice text",
+      "expected": "denied (payee)",
+      "status": "denied",
+      "policy": "deny: The payee is not one of your saved payees.",
+      "pays": "KES 95,000.00",
+      "debit": "—",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Injection · pay the landlord 95,000 against an 18,500 invoice",
+      "expected": "denied (consistency)",
+      "status": "denied",
+      "policy": "deny: The amount or currency does not match the invoice.",
+      "pays": "KES 95,000.00",
+      "debit": "KES 95,000.00",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Tier 3 · pay KES 18,500 rent invoice",
+      "expected": "executed automatically",
+      "status": "executed",
+      "policy": "allow: Approved payee, within your limits.",
+      "pays": "KES 18,500.00",
+      "debit": "KES 18,500.00",
+      "provider_ref": "SIM-882637b66d35",
+      "pass": true
+    },
+    {
+      "step": "Tier 3 · same rent request again",
+      "expected": "duplicate, no new charge",
+      "status": "duplicate of pr_07b6747c61544faf98f0",
+      "policy": "allow: Approved payee, within your limits.",
+      "pays": "KES 18,500.00",
+      "debit": "KES 18,500.00",
+      "provider_ref": "SIM-882637b66d35",
+      "pass": true
+    },
+    {
+      "step": "Tier 3 · pay a payee added today",
+      "expected": "needs confirmation",
+      "status": "needs_confirmation",
+      "policy": "confirm: The payee was added less than 24 hours ago.",
+      "pays": "KES 3,000.00",
+      "debit": "KES 3,000.00",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Student cancels it",
+      "expected": "cancelled",
+      "status": "cancelled",
+      "policy": "confirm: The payee was added less than 24 hours ago.",
+      "pays": "KES 3,000.00",
+      "debit": "KES 3,000.00",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Tier 3 · USD 7,000 (over the KES 800,000 cap)",
+      "expected": "denied (limits)",
+      "status": "denied",
+      "policy": "deny: KES 924,594.64 is over your per-payment cap of KES 800,000.00.",
+      "pays": "USD 7,000.00",
+      "debit": "KES 924,594.64",
+      "provider_ref": null,
+      "pass": true
+    },
+    {
+      "step": "Schedule · approved weekly payment runs",
+      "expected": "executed",
+      "status": "executed",
+      "policy": "allow: Approved payee, within your limits.",
+      "pays": "KES 2,000.00",
+      "debit": "KES 2,000.00",
+      "provider_ref": "SIM-sched-sch_e4",
+      "pass": true
+    },
+    {
+      "step": "Schedule · the same date runs again",
+      "expected": "duplicate, no new charge",
+      "status": "duplicate of pr_4be8f1100cfe493fa436",
+      "policy": "allow: Approved payee, within your limits.",
+      "pays": "KES 2,000.00",
+      "debit": "KES 2,000.00",
+      "provider_ref": "SIM-sched-sch_e4",
+      "pass": true
+    }
+  ],
+  "live": []
+}
