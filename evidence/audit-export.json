@@ -1,0 +1,873 @@
+{
+  "verification": {
+    "ok": true,
+    "entries": 37,
+    "headHash": "870791b658642f68f87c22be1e738911b2233766b8006ad12ca939a1600cee68"
+  },
+  "entries": [
+    {
+      "seq": 1,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:48.889Z",
+      "kind": "tier_changed",
+      "data": {
+        "by": "evidence script (student action)",
+        "to": 1,
+        "from": 1
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "6191cead31381e32fe6953de05ec041e57642a6897936eae3021c07894222d8a"
+    },
+    {
+      "seq": 2,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:48.995Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "agent",
+        "payeeId": "pay_northbridge",
+        "routeId": "mobile_intl_usd",
+        "currency": "USD",
+        "feeMinor": 69211,
+        "invoiceId": "inv_registration",
+        "debitMinor": 4614087,
+        "proposalId": "pr_eff7485dd8a34509a663",
+        "amountMinor": 35000,
+        "idempotencyKey": "5bb1bebb6359d4261e8d22c725d7c329"
+      },
+      "prev_hash": "6191cead31381e32fe6953de05ec041e57642a6897936eae3021c07894222d8a",
+      "hash": "036819e1389caefc1727dd3650cab315b50d22528042cb890c17471f0dbad795"
+    },
+    {
+      "seq": 3,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.004Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Your tier is \"Advise\", which does not allow payments.",
+            "passed": false
+          }
+        ],
+        "origin": "agent",
+        "reason": "Your tier is \"Advise\", which does not allow payments.",
+        "outcome": "deny",
+        "proposalId": "pr_eff7485dd8a34509a663"
+      },
+      "prev_hash": "036819e1389caefc1727dd3650cab315b50d22528042cb890c17471f0dbad795",
+      "hash": "be02ec183f8e08aa66ae5a6563a6815de210a4ac7b80cbd70ed3db78b634ac00"
+    },
+    {
+      "seq": 4,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.043Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "NBU-REG-10442",
+          "amount": "350.00",
+          "currency": "USD",
+          "payee_id": "pay_northbridge",
+          "invoice_id": "inv_registration"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "be02ec183f8e08aa66ae5a6563a6815de210a4ac7b80cbd70ed3db78b634ac00",
+      "hash": "8057df0c530b032eae913030d5493802beeaf51af77a9caed6797204068ce2f7"
+    },
+    {
+      "seq": 5,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.092Z",
+      "kind": "tier_changed",
+      "data": {
+        "by": "evidence script (student action)",
+        "to": 2,
+        "from": 1
+      },
+      "prev_hash": "8057df0c530b032eae913030d5493802beeaf51af77a9caed6797204068ce2f7",
+      "hash": "598fa70212847eeac0a75478b5f0e1289676253b8914b286e7ba9d4ce61cb3c2"
+    },
+    {
+      "seq": 6,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.178Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "agent",
+        "payeeId": "pay_northbridge",
+        "routeId": "mobile_intl_usd",
+        "currency": "USD",
+        "feeMinor": 69211,
+        "invoiceId": "inv_registration",
+        "debitMinor": 4614087,
+        "proposalId": "pr_8be4c25a69044179821d",
+        "amountMinor": 35000,
+        "idempotencyKey": "5bb1bebb6359d4261e8d22c725d7c329-2"
+      },
+      "prev_hash": "598fa70212847eeac0a75478b5f0e1289676253b8914b286e7ba9d4ce61cb3c2",
+      "hash": "1a66f318760fc041e9252dbf164575ac95ea8682120deba70c829ac7407ffcb5"
+    },
+    {
+      "seq": 7,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.187Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act with confirmation\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "Within your per-payment, daily and monthly caps.",
+            "passed": true
+          },
+          {
+            "check": "balance",
+            "detail": "Enough balance, with your buffer kept.",
+            "passed": true
+          },
+          {
+            "check": "consistency",
+            "detail": "Amount, currency and payee match the invoice.",
+            "passed": true
+          },
+          {
+            "check": "rate",
+            "detail": "Normal rate of requests.",
+            "passed": true
+          },
+          {
+            "check": "duplicate",
+            "detail": "Not a repeat of an earlier payment.",
+            "passed": true
+          }
+        ],
+        "origin": "agent",
+        "reason": "Your tier needs your confirmation for every payment.",
+        "outcome": "confirm",
+        "proposalId": "pr_8be4c25a69044179821d"
+      },
+      "prev_hash": "1a66f318760fc041e9252dbf164575ac95ea8682120deba70c829ac7407ffcb5",
+      "hash": "c05a155fe51806a89cfea4b74ffeabccdc378dae2446932a1db0f4b92e9f0f47"
+    },
+    {
+      "seq": 8,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.193Z",
+      "kind": "otp_issued",
+      "data": {
+        "proposalId": "pr_8be4c25a69044179821d"
+      },
+      "prev_hash": "c05a155fe51806a89cfea4b74ffeabccdc378dae2446932a1db0f4b92e9f0f47",
+      "hash": "bccec67033cbc212a5ea0661b60898abf6ff6a97236e3691f91d1874feb17f66"
+    },
+    {
+      "seq": 9,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.228Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "NBU-REG-10442",
+          "amount": "350.00",
+          "currency": "USD",
+          "payee_id": "pay_northbridge",
+          "invoice_id": "inv_registration"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "bccec67033cbc212a5ea0661b60898abf6ff6a97236e3691f91d1874feb17f66",
+      "hash": "867464523e201a788513ac8a2e09143944c3419448e21ffa52ed720efe3467c4"
+    },
+    {
+      "seq": 10,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.301Z",
+      "kind": "student_confirmed",
+      "data": {
+        "withOtp": true,
+        "proposalId": "pr_8be4c25a69044179821d"
+      },
+      "prev_hash": "867464523e201a788513ac8a2e09143944c3419448e21ffa52ed720efe3467c4",
+      "hash": "05daffd99875a86a5733d613e9f4944123bd31a9d50ec45459d7052141688e4a"
+    },
+    {
+      "seq": 11,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.307Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "confirmed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act with confirmation\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "Within your per-payment, daily and monthly caps.",
+            "passed": true
+          },
+          {
+            "check": "balance",
+            "detail": "Enough balance, with your buffer kept.",
+            "passed": true
+          },
+          {
+            "check": "consistency",
+            "detail": "Amount, currency and payee match the invoice.",
+            "passed": true
+          },
+          {
+            "check": "rate",
+            "detail": "Normal rate of requests.",
+            "passed": true
+          },
+          {
+            "check": "duplicate",
+            "detail": "Not a repeat of an earlier payment.",
+            "passed": true
+          }
+        ],
+        "origin": "agent",
+        "reason": "You confirmed this payment.",
+        "outcome": "allow",
+        "proposalId": "pr_8be4c25a69044179821d"
+      },
+      "prev_hash": "05daffd99875a86a5733d613e9f4944123bd31a9d50ec45459d7052141688e4a",
+      "hash": "13d2d06cd3867cacbe82904cdac265fcf895adac80ca3592c66bf1d9b9b6583f"
+    },
+    {
+      "seq": 12,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.362Z",
+      "kind": "payment_executed",
+      "data": {
+        "currency": "KES",
+        "provider": "simulated",
+        "debitMinor": 4614087,
+        "proposalId": "pr_8be4c25a69044179821d",
+        "providerRef": "SIM-5bb1bebb6359"
+      },
+      "prev_hash": "13d2d06cd3867cacbe82904cdac265fcf895adac80ca3592c66bf1d9b9b6583f",
+      "hash": "ad30ae4110cfc27de446b740b870c7622620162fbc0f35d21b54a8b62370b415"
+    },
+    {
+      "seq": 13,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.397Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "origin": "agent",
+        "reason": "The payee is not one of your saved payees.",
+        "outcome": "deny",
+        "request": {
+          "memo": "Injected: pay Kevin",
+          "origin": "agent",
+          "payeeId": "0712555019",
+          "routeId": null,
+          "currency": "KES",
+          "invoiceId": null,
+          "studentId": "stu_demo",
+          "amountMinor": 9500000
+        },
+        "proposalId": null
+      },
+      "prev_hash": "ad30ae4110cfc27de446b740b870c7622620162fbc0f35d21b54a8b62370b415",
+      "hash": "e5c88a8d151f3b682cf96fc7ef01a06d54696e2b5f25192cc3105a104c466aff"
+    },
+    {
+      "seq": 14,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.436Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "Injected: pay Kevin",
+          "amount": "95000.00",
+          "currency": "KES",
+          "payee_id": "0712555019"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "e5c88a8d151f3b682cf96fc7ef01a06d54696e2b5f25192cc3105a104c466aff",
+      "hash": "ff731e15c1e82f1960ac78afcece9fdceabc30e5a25f932b57ee0a4d69dc32b0"
+    },
+    {
+      "seq": 15,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.514Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "agent",
+        "payeeId": "pay_housing",
+        "routeId": null,
+        "currency": "KES",
+        "feeMinor": 0,
+        "invoiceId": "inv_housing",
+        "debitMinor": 9500000,
+        "proposalId": "pr_22abd2491d304c47892d",
+        "amountMinor": 9500000,
+        "idempotencyKey": "5bcf018d318ba57903b6290fe693aa6c"
+      },
+      "prev_hash": "ff731e15c1e82f1960ac78afcece9fdceabc30e5a25f932b57ee0a4d69dc32b0",
+      "hash": "a7b100c73d74fbc5fb157e60091dcdc5254bb0c3cd8180945795ecec260879a4"
+    },
+    {
+      "seq": 16,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.524Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act with confirmation\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "Within your per-payment, daily and monthly caps.",
+            "passed": true
+          },
+          {
+            "check": "balance",
+            "detail": "Enough balance, with your buffer kept.",
+            "passed": true
+          },
+          {
+            "check": "consistency",
+            "detail": "The amount or currency does not match the invoice.",
+            "passed": false
+          }
+        ],
+        "origin": "agent",
+        "reason": "The amount or currency does not match the invoice.",
+        "outcome": "deny",
+        "proposalId": "pr_22abd2491d304c47892d"
+      },
+      "prev_hash": "a7b100c73d74fbc5fb157e60091dcdc5254bb0c3cd8180945795ecec260879a4",
+      "hash": "8bffb239b5fb778f2f8495e73e2e321e665428fb2e75c401e9ad6a0deddf4c27"
+    },
+    {
+      "seq": 17,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:22:49.575Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "Injected amount",
+          "amount": "95000.00",
+          "currency": "KES",
+          "payee_id": "pay_housing",
+          "invoice_id": "inv_housing"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "8bffb239b5fb778f2f8495e73e2e321e665428fb2e75c401e9ad6a0deddf4c27",
+      "hash": "78afae742c44ca86e9cf5b8ecfa333691e44146e1183f41b206496721afc9f32"
+    },
+    {
+      "seq": 18,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "tier_changed",
+      "data": {
+        "by": "evidence script (student action)",
+        "to": 3,
+        "from": 2
+      },
+      "prev_hash": "78afae742c44ca86e9cf5b8ecfa333691e44146e1183f41b206496721afc9f32",
+      "hash": "db4ecb5df75dd90d6ee851322293ae5fc07f130fbb42042e297d6cdd3ce13329"
+    },
+    {
+      "seq": 19,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "agent",
+        "payeeId": "pay_housing",
+        "routeId": null,
+        "currency": "KES",
+        "feeMinor": 0,
+        "invoiceId": "inv_housing",
+        "debitMinor": 1850000,
+        "proposalId": "pr_07b6747c61544faf98f0",
+        "amountMinor": 1850000,
+        "idempotencyKey": "882637b66d35f1fa15956c939cca157d"
+      },
+      "prev_hash": "db4ecb5df75dd90d6ee851322293ae5fc07f130fbb42042e297d6cdd3ce13329",
+      "hash": "bfd3ca99477031629dd4a651ad0e968fbd33562600ecdb857183632716701f80"
+    },
+    {
+      "seq": 20,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act within limits\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "Within your per-payment, daily and monthly caps.",
+            "passed": true
+          },
+          {
+            "check": "balance",
+            "detail": "Enough balance, with your buffer kept.",
+            "passed": true
+          },
+          {
+            "check": "consistency",
+            "detail": "Amount, currency and payee match the invoice.",
+            "passed": true
+          },
+          {
+            "check": "rate",
+            "detail": "Normal rate of requests.",
+            "passed": true
+          },
+          {
+            "check": "duplicate",
+            "detail": "Not a repeat of an earlier payment.",
+            "passed": true
+          }
+        ],
+        "origin": "agent",
+        "reason": "Approved payee, within your limits.",
+        "outcome": "allow",
+        "proposalId": "pr_07b6747c61544faf98f0"
+      },
+      "prev_hash": "bfd3ca99477031629dd4a651ad0e968fbd33562600ecdb857183632716701f80",
+      "hash": "1722652cb893998e942e0afeb85a59aef03a38cfb2d8504c4e5f219bd9826d4c"
+    },
+    {
+      "seq": 21,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "payment_executed",
+      "data": {
+        "currency": "KES",
+        "provider": "simulated",
+        "debitMinor": 1850000,
+        "proposalId": "pr_07b6747c61544faf98f0",
+        "providerRef": "SIM-882637b66d35"
+      },
+      "prev_hash": "1722652cb893998e942e0afeb85a59aef03a38cfb2d8504c4e5f219bd9826d4c",
+      "hash": "5d89e113235d55e4f325f6b295af8ce9f28694a17baa84a09cf6d38783f6aafd"
+    },
+    {
+      "seq": 22,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "CHS-NOV-2207",
+          "amount": "18500.00",
+          "currency": "KES",
+          "payee_id": "pay_housing",
+          "invoice_id": "inv_housing"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "5d89e113235d55e4f325f6b295af8ce9f28694a17baa84a09cf6d38783f6aafd",
+      "hash": "e734d3b56233397ec065cd4e10fafe18e6987559d9006783020ba18a2f7f5cc4"
+    },
+    {
+      "seq": 23,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "origin": "agent",
+        "reason": "Same payment already requested",
+        "outcome": "duplicate",
+        "proposalId": "pr_07b6747c61544faf98f0"
+      },
+      "prev_hash": "e734d3b56233397ec065cd4e10fafe18e6987559d9006783020ba18a2f7f5cc4",
+      "hash": "a4e2681604dce278915f28891923700b13bb1a0d47f4d93be22e4344f6cc20df"
+    },
+    {
+      "seq": 24,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:33:49.616Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "CHS-NOV-2207",
+          "amount": "18500.00",
+          "currency": "KES",
+          "payee_id": "pay_housing",
+          "invoice_id": "inv_housing"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "a4e2681604dce278915f28891923700b13bb1a0d47f4d93be22e4344f6cc20df",
+      "hash": "17184d2e60acb80aa3ec0e871d4928e1569175ff16ee0e3c0fe3af58ef893983"
+    },
+    {
+      "seq": 25,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "agent",
+        "payeeId": "pay_roommate",
+        "routeId": null,
+        "currency": "KES",
+        "feeMinor": 0,
+        "invoiceId": null,
+        "debitMinor": 300000,
+        "proposalId": "pr_a76357930fd847be8fba",
+        "amountMinor": 300000,
+        "idempotencyKey": "c6bd2e925208d949e43cc68383dbf6bf"
+      },
+      "prev_hash": "17184d2e60acb80aa3ec0e871d4928e1569175ff16ee0e3c0fe3af58ef893983",
+      "hash": "8c5e07e828bea0dc5826ebec1bcfd539cd9b30db4366e98b1c2f1c89fae76e40"
+    },
+    {
+      "seq": 26,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act within limits\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee, added recently: needs your confirmation.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "Within your per-payment, daily and monthly caps.",
+            "passed": true
+          },
+          {
+            "check": "balance",
+            "detail": "Enough balance, with your buffer kept.",
+            "passed": true
+          },
+          {
+            "check": "consistency",
+            "detail": "No document cited.",
+            "passed": true
+          },
+          {
+            "check": "rate",
+            "detail": "Normal rate of requests.",
+            "passed": true
+          },
+          {
+            "check": "duplicate",
+            "detail": "Not a repeat of an earlier payment.",
+            "passed": true
+          }
+        ],
+        "origin": "agent",
+        "reason": "The payee was added less than 24 hours ago.",
+        "outcome": "confirm",
+        "proposalId": "pr_a76357930fd847be8fba"
+      },
+      "prev_hash": "8c5e07e828bea0dc5826ebec1bcfd539cd9b30db4366e98b1c2f1c89fae76e40",
+      "hash": "d4e6ee9c811b95a82e728c052703af888ebff3ba3629e424fe20a90145fb9e4e"
+    },
+    {
+      "seq": 27,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "Electricity share",
+          "amount": "3000.00",
+          "currency": "KES",
+          "payee_id": "pay_roommate"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "d4e6ee9c811b95a82e728c052703af888ebff3ba3629e424fe20a90145fb9e4e",
+      "hash": "9ffd4005792d60e979bf837e42170f0b9194d7b9aa4f4050baea8deb36478f90"
+    },
+    {
+      "seq": 28,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "student_denied",
+      "data": {
+        "reason": "Cancelled by student",
+        "proposalId": "pr_a76357930fd847be8fba"
+      },
+      "prev_hash": "9ffd4005792d60e979bf837e42170f0b9194d7b9aa4f4050baea8deb36478f90",
+      "hash": "9ff2414e8f46c29b903d2ef1e757394dfd02c039d3f40a1d95138a8e9e50a047"
+    },
+    {
+      "seq": 29,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "agent",
+        "payeeId": "pay_northbridge",
+        "routeId": "bank_swift_usd",
+        "currency": "USD",
+        "feeMinor": 350000,
+        "invoiceId": null,
+        "debitMinor": 92459464,
+        "proposalId": "pr_9c99d347e91f4561b728",
+        "amountMinor": 700000,
+        "idempotencyKey": "c51432f01191126016e866a9590525f1"
+      },
+      "prev_hash": "9ff2414e8f46c29b903d2ef1e757394dfd02c039d3f40a1d95138a8e9e50a047",
+      "hash": "7c219c160a0d2a514996abc3724613ebd0575c7bd0f80a29cf34388488c03609"
+    },
+    {
+      "seq": 30,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act within limits\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "KES 924,594.64 is over your per-payment cap of KES 800,000.00.",
+            "passed": false
+          }
+        ],
+        "origin": "agent",
+        "reason": "KES 924,594.64 is over your per-payment cap of KES 800,000.00.",
+        "outcome": "deny",
+        "proposalId": "pr_9c99d347e91f4561b728"
+      },
+      "prev_hash": "7c219c160a0d2a514996abc3724613ebd0575c7bd0f80a29cf34388488c03609",
+      "hash": "d4711795e2dd75afcddd831b55c5e1bff8a0b307ffb67cad41df309563aec2d2"
+    },
+    {
+      "seq": 31,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "tool_call",
+      "data": {
+        "ok": true,
+        "via": "evidence script",
+        "tool": "propose_payment",
+        "input": {
+          "memo": "Too large",
+          "amount": "7000.00",
+          "currency": "USD",
+          "payee_id": "pay_northbridge"
+        },
+        "toolKind": "act"
+      },
+      "prev_hash": "d4711795e2dd75afcddd831b55c5e1bff8a0b307ffb67cad41df309563aec2d2",
+      "hash": "9716638009b6db13885019f01b828c37f6db9dd07773895355d2172ccd129c8d"
+    },
+    {
+      "seq": 32,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "schedule_created",
+      "data": {
+        "memo": "Weekly tuition savings (sandbox)",
+        "payeeId": "pay_family",
+        "currency": "KES",
+        "firstDate": "2026-10-15",
+        "studentId": "stu_demo",
+        "scheduleId": "sch_e4bb5257",
+        "amountMinor": 200000,
+        "intervalDays": 7
+      },
+      "prev_hash": "9716638009b6db13885019f01b828c37f6db9dd07773895355d2172ccd129c8d",
+      "hash": "9b56fbffe6c69d38bc4307f0e0beb3450a081d27b57c68a4ae3c314b9dab457d"
+    },
+    {
+      "seq": 33,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "schedule_approved",
+      "data": {
+        "scheduleId": "sch_e4bb5257"
+      },
+      "prev_hash": "9b56fbffe6c69d38bc4307f0e0beb3450a081d27b57c68a4ae3c314b9dab457d",
+      "hash": "f429879f3986139106002c30d6c104e6392890e3d51b80221207f27991e4b0a6"
+    },
+    {
+      "seq": 34,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "proposal_created",
+      "data": {
+        "origin": "schedule",
+        "payeeId": "pay_family",
+        "routeId": null,
+        "currency": "KES",
+        "feeMinor": 0,
+        "invoiceId": null,
+        "debitMinor": 200000,
+        "proposalId": "pr_4be8f1100cfe493fa436",
+        "amountMinor": 200000,
+        "idempotencyKey": "sched-sch_e4bb5257-2026-10-15"
+      },
+      "prev_hash": "f429879f3986139106002c30d6c104e6392890e3d51b80221207f27991e4b0a6",
+      "hash": "92e51d88f4e4032e5b4fb074809711a5ce3d3e97d4c5057214a330cedafccbcb"
+    },
+    {
+      "seq": 35,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "checks": [
+          {
+            "check": "tier",
+            "detail": "Tier \"Act within limits\" allows payments.",
+            "passed": true
+          },
+          {
+            "check": "payee",
+            "detail": "Approved payee.",
+            "passed": true
+          },
+          {
+            "check": "limits",
+            "detail": "Within your per-payment, daily and monthly caps.",
+            "passed": true
+          },
+          {
+            "check": "balance",
+            "detail": "Enough balance, with your buffer kept.",
+            "passed": true
+          },
+          {
+            "check": "consistency",
+            "detail": "No document cited.",
+            "passed": true
+          },
+          {
+            "check": "rate",
+            "detail": "Normal rate of requests.",
+            "passed": true
+          },
+          {
+            "check": "duplicate",
+            "detail": "Not a repeat of an earlier payment.",
+            "passed": true
+          }
+        ],
+        "origin": "schedule",
+        "reason": "Approved payee, within your limits.",
+        "outcome": "allow",
+        "proposalId": "pr_4be8f1100cfe493fa436"
+      },
+      "prev_hash": "92e51d88f4e4032e5b4fb074809711a5ce3d3e97d4c5057214a330cedafccbcb",
+      "hash": "fde1e8043eaf052616c60edf4fd6324317ff041942593529ff2bd17a4a846a5e"
+    },
+    {
+      "seq": 36,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "payment_executed",
+      "data": {
+        "currency": "KES",
+        "provider": "simulated",
+        "debitMinor": 200000,
+        "proposalId": "pr_4be8f1100cfe493fa436",
+        "providerRef": "SIM-sched-sch_e4"
+      },
+      "prev_hash": "fde1e8043eaf052616c60edf4fd6324317ff041942593529ff2bd17a4a846a5e",
+      "hash": "69be7f6ae79e7d34aa06448b3be6ec3ac87a19859d383b91dc74178de2ff76e0"
+    },
+    {
+      "seq": 37,
+      "student_id": "stu_demo",
+      "at": "2026-10-15T11:44:49.616Z",
+      "kind": "policy_decision",
+      "data": {
+        "stage": "proposed",
+        "origin": "schedule",
+        "reason": "Same payment already requested",
+        "outcome": "duplicate",
+        "proposalId": "pr_4be8f1100cfe493fa436"
+      },
+      "prev_hash": "69be7f6ae79e7d34aa06448b3be6ec3ac87a19859d383b91dc74178de2ff76e0",
+      "hash": "870791b658642f68f87c22be1e738911b2233766b8006ad12ca939a1600cee68"
+    }
+  ]
+}

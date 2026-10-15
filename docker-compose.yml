@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hela
+      POSTGRES_PASSWORD: hela
+      POSTGRES_DB: hela
+    # 5544 on the host so it does not collide with a local Postgres on 5432.
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - hela-db:/var/lib/postgresql/data
+      - ./server/db/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hela"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://hela:hela@db:5432/hela
+      PORT: "8787"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8787}
+    ports:
+      - "127.0.0.1:8787:8787"
+    profiles: ["app"]
+
+volumes:
+  hela-db:
