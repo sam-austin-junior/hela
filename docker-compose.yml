@@ -25,6 +25,7 @@ services:
     environment:
       DATABASE_URL: postgres://hela:hela@db:5432/hela
       PORT: "8787"
+      HOST: 0.0.0.0
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8787}

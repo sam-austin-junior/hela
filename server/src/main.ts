@@ -24,5 +24,5 @@ if (left > 0 && model) {
   categoriseWithModel(db, 'stu_demo').catch((e) => console.warn('Model categorisation skipped:', (e as Error).message));
 }
 
-await app.listen({ port: config.port, host: '0.0.0.0' });
+await app.listen({ port: config.port, host: config.host });
 console.log(`Hela on ${config.publicUrl}  ·  payments: ${adapter.name}  ·  model: ${model ? config.model : 'not configured'}`);

@@ -17,6 +17,9 @@ function env(name: string): string | undefined {
 export const config = {
   databaseUrl: env('DATABASE_URL') ?? 'postgres://hela:hela@127.0.0.1:5544/hela',
   port: Number(env('PORT') ?? 8787),
+  // Local only by default: the demo has no login, so it must not be reachable
+  // from the network. Docker sets HOST=0.0.0.0 inside its own network.
+  host: env('HOST') ?? '127.0.0.1',
   publicUrl: env('PUBLIC_URL') ?? 'http://localhost:8787',
   model: env('HELA_MODEL') ?? 'claude-opus-5-5',
   paystackSecretKey: env('PAYSTACK_SECRET_KEY'),
