@@ -1,6 +1,7 @@
 import { createHash, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { withTx, type Db, type Queryable } from '../db.js';
 import { clock } from '../clock.js';
+import { config } from '../config.js';
 import { appendAudit } from '../audit/log.js';
 import { evaluate, RATE_WINDOW_MINUTES, type Decision, type PolicyContext, type ProposalFacts } from '../policy/engine.js';
 import { compareRoutes, quoteReceive } from '../domain/remittance.js';
@@ -304,7 +305,9 @@ export async function proposePayment(db: Db, adapter: PaymentAdapter, r: Proposa
 
   if (status === 'executing') await execute(db, adapter, id);
   const view = (await getProposalView(db, id))!;
-  return otp ? { ...view, demoOtp: otp } : view;
+  // Demo mode shows the code on screen in place of an SMS. With HELA_DEMO_OTP=off
+  // it is never returned; a real deployment would send it to the student's phone.
+  return otp && config.demoOtpOnScreen ? { ...view, demoOtp: otp } : view;
 }
 
 /** Charge the provider for an allowed proposal and record the outcome. */

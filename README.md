@@ -23,6 +23,8 @@ student ─▶ web app ─▶ agent orchestrator ◀─▶ Claude (plans, explai
              payment adapter ─▶ Paystack test mode / simulated sandbox
 ```
 
+See [SECURITY.md](SECURITY.md) for the security self-assessment: threat model, controls mapped to tests, and known risks.
+
 ## Permission tiers
 
 | Tier | Hela may | Money movement |
