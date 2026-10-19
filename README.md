@@ -100,6 +100,16 @@ Hela works with two providers behind one interface ([server/src/agent/model.ts](
 
 Either way, each message carries a summary of balances, bills and approved payees, every number the student sees comes from a tool, and the policy engine, not the model, decides every payment. `npm run live-check -- "Plan my spring tuition"` runs prompts against the configured model and prints tools, time and tokens.
 
+## Team
+
+**Team Hela**
+
+| Member | Programme | Year | University |
+|---|---|---|---|
+| Sam Austin | BSc Information Technology | 4 | Murang'a University of Technology |
+| Yvonne Akinyi Otieno | Bachelor of Commerce (Finance) | 4 | University of Nairobi |
+| Marrion Mwendwa | BSc Statistics | 4 | University of Nairobi |
+
 ## Licence
 
 MIT
