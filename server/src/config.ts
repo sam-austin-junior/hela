@@ -22,12 +22,36 @@ export const config = {
   host: env('HOST') ?? '127.0.0.1',
   publicUrl: env('PUBLIC_URL') ?? 'http://localhost:8787',
   model: env('HELA_MODEL') ?? 'claude-opus-5-5',
+  // Open models on Groq's free tier: the alternative when no Claude key is set.
+  groqApiKey: env('GROQ_API_KEY'),
+  groqModel: env('HELA_GROQ_MODEL') ?? 'openai/gpt-oss-120b',
   paystackSecretKey: env('PAYSTACK_SECRET_KEY'),
   // The demo shows one-time codes on screen instead of sending an SMS.
   demoOtpOnScreen: env('HELA_DEMO_OTP') !== 'off',
 };
 
-/** True when the model can be called: an API key, or an SDK auth profile. */
+export type ModelProvider = 'anthropic' | 'groq';
+
+/**
+ * Which model provider to use: HELA_MODEL_PROVIDER if set, otherwise Claude
+ * when its key is present, otherwise Groq when its key is present.
+ */
+export function modelProvider(): ModelProvider | null {
+  const anthropic = Boolean(env('ANTHROPIC_API_KEY') ?? env('ANTHROPIC_AUTH_TOKEN'));
+  const groq = Boolean(config.groqApiKey);
+  const wanted = env('HELA_MODEL_PROVIDER');
+  if (wanted === 'anthropic') return anthropic ? 'anthropic' : null;
+  if (wanted === 'groq') return groq ? 'groq' : null;
+  return anthropic ? 'anthropic' : groq ? 'groq' : null;
+}
+
+/** True when some model can be called. */
 export function modelConfigured(): boolean {
-  return Boolean(env('ANTHROPIC_API_KEY') ?? env('ANTHROPIC_AUTH_TOKEN'));
+  return modelProvider() !== null;
+}
+
+/** The model actually in use, for logs and evidence. */
+export function modelName(): string | null {
+  const p = modelProvider();
+  return p === 'anthropic' ? config.model : p === 'groq' ? `${config.groqModel} (Groq)` : null;
 }

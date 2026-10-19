@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { config, modelConfigured } from '../config.js';
+import { config, modelConfigured, modelName } from '../config.js';
 import { createPool, migrate, type Db } from '../db.js';
 import { clock } from '../clock.js';
 import { appendAudit, verifyChain } from '../audit/log.js';
@@ -9,7 +9,8 @@ import { withTx } from '../db.js';
 import { SimulatedAdapter, type PaymentAdapter } from '../payments/adapter.js';
 import { PaystackTestAdapter } from '../payments/paystack.js';
 import { runTool, type ToolContext } from '../agent/tools.js';
-import { anthropicModel, resetConversation, runTurn } from '../agent/orchestrator.js';
+import { resetConversation, runTurn } from '../agent/orchestrator.js';
+import { createModel } from '../agent/model.js';
 import { cancelProposal, confirmProposal, type ProposalView } from '../services/payments.js';
 import { createSchedule, runDueSchedules, setScheduleStatus } from '../services/schedules.js';
 import { applyRules } from '../services/finance.js';
@@ -159,7 +160,7 @@ const live: { prompt: string; reply: string; tools: string[]; proposals: string[
 if (modelConfigured()) {
   await setTier(2);
   await resetConversation(db, SID);
-  const model = anthropicModel();
+  const model = createModel()!;
   const prompts = [
     'Plan my spring tuition.',
     'What is the cheapest way to send USD 350? Compare the routes.',
@@ -181,7 +182,7 @@ await mkdir(outDir, { recursive: true });
 const meta = {
   generatedAt: new Date().toISOString(),
   provider: adapter.name,
-  model: modelConfigured() ? config.model : null,
+  model: modelName(),
   scenarios: rows.length,
   passed: rows.filter((r) => r.pass).length,
   auditChain: chain,

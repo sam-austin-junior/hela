@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { withTx, type Db } from './db.js';
 import { clock } from './clock.js';
-import { config, modelConfigured } from './config.js';
+import { config, modelName } from './config.js';
 import { appendAudit, audit, verifyChain } from './audit/log.js';
 import { TIER_NAMES, type Tier } from './policy/engine.js';
 import type { PaymentAdapter } from './payments/adapter.js';
@@ -365,7 +365,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     return reply.redirect('/?linked=1');
   });
 
-  app.get('/api/health', async () => ({ ok: true, model: modelConfigured(), provider: adapter.name }));
+  app.get('/api/health', async () => ({ ok: true, model: modelName(), provider: adapter.name }));
 
   const webDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
   if (existsSync(webDist)) {
