@@ -174,6 +174,7 @@ interface LiveStep {
   name: string;
   kind: string;
   state: 'running' | 'ok' | 'error';
+  label?: string;
 }
 
 function Chat({ state, onChange, onOpenSettings }: { state: State; onChange: () => void; onOpenSettings: () => void }) {
@@ -183,10 +184,18 @@ function Chat({ state, onChange, onOpenSettings }: { state: State; onChange: () 
   const [live, setLive] = useState<LiveStep[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [items, busy, live]);
+  // Braces matter: newer browsers return a Promise from scrollIntoView, and an
+  // effect must return nothing or a cleanup function.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [items, busy, live]);
 
   const onStep = (e: TurnStep) => {
-    if (e.type === 'tool_start') setLive((l) => [...l, { name: e.name, kind: e.kind, state: 'running' }]);
+    if (e.type === 'waiting') {
+      // The free AI tier allows a limited amount per minute; say so instead of looking stuck.
+      setLive((l) => [...l.filter((s) => s.name !== '__wait'), { name: '__wait', kind: 'wait', state: 'ok', label: `Waiting ${e.seconds}s for the free AI tier's per-minute limit` }]);
+    }
+    if (e.type === 'tool_start') setLive((l) => [...l.filter((s) => s.name !== '__wait'), { name: e.name, kind: e.kind, state: 'running' }]);
     if (e.type === 'tool_end') {
       setLive((l) => {
         const i = l.findIndex((s) => s.name === e.name && s.state === 'running');
@@ -264,7 +273,7 @@ function Chat({ state, onChange, onOpenSettings }: { state: State; onChange: () 
                 {live.map((s, i) => (
                   <li key={i} className={`step step-${s.state} tool-${s.kind}`}>
                     <span className="step-dot" aria-hidden />
-                    {STEP_TEXT[s.name] ?? s.name.replace(/_/g, ' ')}
+                    {s.label ?? STEP_TEXT[s.name] ?? s.name.replace(/_/g, ' ')}
                     {s.state === 'running' ? '…' : s.state === 'error' ? ' (failed)' : ''}
                   </li>
                 ))}

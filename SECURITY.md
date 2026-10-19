@@ -2,7 +2,7 @@
 
 PBCSF Fintechathon 2026 · International Track · Topic C. Assessed on 16 October 2026 against commit `main` of https://github.com/sam-austin-junior/hela.
 
-**Summary.** In Hela, the language model can propose a payment but can never approve one. Approval is decided by a deterministic policy engine that reads the student's tier and limits from the database. The model has no tool that can change them. A hash-chained, append-only audit log records every step. 97 automated tests back the controls below, including tests in which a scripted, fully compromised model tries to move money. The main residual risks are in the demo's simplifications: there is a single student with no login, and one-time codes are shown on screen. These are listed honestly in section 5.
+**Summary.** In Hela, the language model can propose a payment but can never approve one. Approval is decided by a deterministic policy engine that reads the student's tier and limits from the database. The model has no tool that can change them. A hash-chained, append-only audit log records every step. 108 automated tests back the controls below, including tests in which a scripted, fully compromised model tries to move money. The main residual risks are in the demo's simplifications: there is a single student with no login, and one-time codes are shown on screen. These are listed honestly in section 5.
 
 ## 1. Scope and assumptions
 
@@ -85,18 +85,19 @@ Rated for the demo as built. L = likelihood, I = impact, each Low, Medium or Hig
 | R3 | **A 4-digit PIN, and a lockout held in memory** that resets when the server restarts. | M | M | Longer PIN or device biometrics; lockout state in the database. |
 | R4 | **The audit chain lives in the same database.** Someone with full database rights could rewrite the whole chain consistently. The tests only show that partial edits are caught. | L | H | Publish the head hash regularly to an external, append-only store, or sign entries with a key held outside the database. |
 | R5 | **Social engineering through the model's words.** An injected document could make the model urge the student to confirm a payment. The card shows the real payee and amount, but a hurried student may still confirm. | M | M | Warn on the card when a payee or amount differs from the student's usual pattern; add a cooling-off period for large first payments. |
-| R6 | **Financial data goes to the model provider.** Amounts, categories and masked descriptions are sent to the Claude API. | M | M | A data processing agreement; minimise fields further; consider a regional deployment. |
+| R6 | **Financial data goes to the model provider.** Amounts, categories and masked descriptions are sent to the configured model provider (Groq or Anthropic). | M | M | A data processing agreement; minimise fields further; consider a regional deployment. |
 | R7 | **Conversation history and payment tokens are stored in plain text** in Postgres. | L | M | Encryption at rest, column-level encryption for tokens, and a retention limit on conversations. |
 | R8 | **The rate limit covers agent attempts only.** Scheduled payments are bounded by caps, not by the burst check. | L | L | Add a separate cap on scheduled runs per day. |
 | R9 | **No CSRF tokens.** JSON-only endpoints and the absence of CORS headers limit cross-site requests, but there is no explicit token. | L | M | SameSite cookies with CSRF tokens once sessions exist. |
 | R10 | **Sandbox data.** Exchange rates are a seeded random walk and fee tables are illustrative, so plans would be wrong with real money. | — | M | Licensed rate and fee feeds, with the source and date shown, as now. |
 | R11 | **Dependencies.** We rely on npm packages. `npm audit` reports 0 known vulnerabilities today, but there is no automated scanning. | L | M | Dependabot or a similar scanner, plus pinned versions in CI. |
+| R13 | **Open models are less dependable.** On the free Groq tier the model sometimes mentions internal ids or does small sums itself, and per-minute limits slow replies. Payments are unaffected: the policy engine decides. | M | L | Use Claude, or a paid tier, for production; keep the evaluation set (R12) running against whichever model is used. |
 | R12 | **The model's live behaviour is not yet evaluated.** Tests use a scripted model. Real-model injection runs are recorded by `npm run evidence` only when an API key is set. | M | M | A recurring evaluation set of injection and refusal prompts against the live model. |
 
 ## 6. How to verify
 
 ```bash
-npm run db:up && npm test      # 97 tests
+npm run db:up && npm test      # 108 tests
 npm run evidence               # sandbox scenarios + audit export in evidence/
 curl localhost:8787/api/audit/verify
 ```

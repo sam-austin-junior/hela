@@ -231,6 +231,35 @@ describe('student journeys (scripted model, real tools and database)', () => {
     await runTurn(db, model, adapter, SID, 'two');
     const saved = (await db.query('SELECT messages FROM conversations WHERE student_id = $1', [SID])).rows[0].messages;
     expect(saved).toHaveLength(4);
-    expect(saved[2].content[0].text).toContain('<context>today=2026-10-15; tier=1 (Advise)</context>');
+    const ctx = saved[2].content[0].text as string;
+    expect(ctx).toContain('today=2026-10-15; tier=1 (Advise); first_name=Amina');
+    expect(ctx).toContain('balance_total=KES 372,400.00');
+    expect(ctx).toContain('inv_registration=Northbridge University (sandbox), USD 350.00 (amount_decimal 350.00), due 2026-10-31, payee_id pay_northbridge');
+    expect(ctx).toContain('pay_housing=Campus Housing Services (KES)');
+    expect(ctx).not.toContain('pay_course'); // unapproved payees are left out
+    expect(ctx).not.toContain('0712'); // bill text is not in the context
+    expect(ctx).not.toContain('reply_language');
+  });
+});
+
+describe('language and empty replies', () => {
+  it('detects Kiswahili and asks for the reply in it', async () => {
+    const { replyLanguage } = await import('../src/agent/orchestrator.js');
+    expect(replyLanguage('Nisaidie kupanga karo yangu')).toBe('Kiswahili');
+    expect(replyLanguage('Je, nina pesa ngapi?')).toBe('Kiswahili');
+    expect(replyLanguage('Pay my rent and the fees')).toBeNull();
+    expect(replyLanguage('Plan my spring tuition')).toBeNull();
+    let seen = '';
+    const model = scripted([(m) => { seen = JSON.stringify(m.at(-1)); return final('Sawa.'); }]);
+    await runTurn(db, model, adapter, SID, 'Nisaidie kupanga karo yangu');
+    expect(seen).toContain('reply_language=Kiswahili');
+  });
+
+  it('asks the model again once when it returns nothing', async () => {
+    const empty = () => ({ ...final(''), content: [] }) as any;
+    const model = scripted([empty, () => final('Here you go.')]);
+    const turn = await runTurn(db, model, adapter, SID, 'hi');
+    expect(turn.reply).toBe('Here you go.');
+    expect(model.calls).toBe(2);
   });
 });

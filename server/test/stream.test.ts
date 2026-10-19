@@ -26,7 +26,7 @@ describe('live progress', () => {
       () => final('Done.'),
     ]);
     await runTurn(db, model, new SimulatedAdapter(), SID, 'Plan', (e) => events.push(e));
-    expect(events.map((e) => (e.type === 'thinking' ? 'think' : `${e.type}:${e.name}${e.type === 'tool_end' ? `:${e.ok}` : ''}`))).toEqual([
+    expect(events.map((e) => (e.type === 'thinking' ? 'think' : e.type === 'waiting' ? 'wait' : `${e.type}:${e.name}${e.type === 'tool_end' ? `:${e.ok}` : ''}`))).toEqual([
       'think',
       'tool_start:get_overview',
       'tool_end:get_overview:true',

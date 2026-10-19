@@ -115,14 +115,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function groqModel(apiKey: string, model: string, fetchImpl: typeof fetch = fetch, wait = sleep): ModelClient {
   return {
-    async create({ system, tools, messages }) {
+    async create({ system, tools, messages, onEvent }) {
       const body = JSON.stringify({
         model,
         messages: toChat(system, recentTurns(messages)),
         tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } })),
         tool_choice: 'auto',
         temperature: 0.2,
-        max_tokens: 2048,
+        max_tokens: 1200,
+        // gpt-oss models think before answering; low effort keeps each step
+        // fast and inside the free tier's tokens-per-minute limit.
+        ...(model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {}),
       });
       // The free tier answers 429 when a per-minute limit is hit; wait as told and retry.
       for (let attempt = 0; ; attempt++) {
@@ -132,9 +135,11 @@ export function groqModel(apiKey: string, model: string, fetchImpl: typeof fetch
           body,
           signal: AbortSignal.timeout(90_000),
         });
-        if (res.status === 429 && attempt < 3) {
+        if (res.status === 429 && attempt < 4) {
           const after = Number(res.headers.get('retry-after'));
-          await wait(Math.min(Number.isFinite(after) && after > 0 ? after * 1000 : 5000 * (attempt + 1), 60_000));
+          const ms = Math.min(Number.isFinite(after) && after > 0 ? after * 1000 : 5000 * (attempt + 1), 60_000);
+          onEvent?.({ type: 'waiting', seconds: Math.ceil(ms / 1000) });
+          await wait(ms);
           continue;
         }
         const json = (await res.json().catch(() => ({}))) as ChatResponse & { error?: { message?: string } };

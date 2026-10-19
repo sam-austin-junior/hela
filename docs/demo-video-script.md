@@ -4,7 +4,8 @@ The story: **one student, one week of money problems, and an agent that does the
 
 ## Before you record
 
-- [ ] `ANTHROPIC_API_KEY` is set in `.env` and the server was restarted. The chat must be live.
+- [ ] `GROQ_API_KEY` (free) or `ANTHROPIC_API_KEY` is set in `.env` and the server was restarted. The chat must be live.
+- [ ] On the free Groq tier, leave about a minute between questions (or cut the waits in editing). If a wait happens, the chat says so.
 - [ ] `npm run seed` for fresh data. Amina starts on **Advise me** (tier 1).
 - [ ] Browser window 1280×720, zoom 110%, other tabs closed, notifications off.
 - [ ] Rehearse each prompt once. Model wording varies between runs, so record the take where the reply is short and clear.
@@ -102,7 +103,7 @@ Keep the voice-over calm and slow. Pause briefly when Hela's live steps appear, 
 **Do:** cut to the terminal and run `npm test`. Show the final line: **97 passed**.
 
 **Say:**
-> "97 automated tests cover the maths, every policy rule, duplicate payments, tampering and prompt-injection attacks."
+> "108 automated tests cover the maths, every policy rule, duplicate payments, tampering and prompt-injection attacks."
 
 ## 8 · Kiswahili and close (4:35–4:50)
 

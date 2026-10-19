@@ -11,7 +11,7 @@ Built for the PBCSF Fintechathon 2026, International Track, Topic C (Cross-borde
 The language model can **propose** a payment but can never **approve** one. A deterministic policy engine decides, using the student's permission tier and limits, which are loaded from the database and which the model cannot read as editable or change. Even a model that has been fully taken over by an injected instruction cannot move money outside those rules. The tests prove it with a scripted "compromised" model.
 
 ```
-student ─▶ web app ─▶ agent orchestrator ◀─▶ Claude (plans, explains)
+student ─▶ web app ─▶ agent orchestrator ◀─▶ AI model: Claude or open models on Groq (plans, explains)
                           │ runs tools
                           ▼
                  read · plan · act tools ──▶ data (accounts, rates, fee snapshots)
@@ -50,7 +50,7 @@ npm run build -w web
 npm start              # http://localhost:8787
 ```
 
-For the chat, copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY`. Without a key the panels, payments and tests still work.
+For the chat, copy `.env.example` to `.env` and set **one** key: `GROQ_API_KEY` for the free tier at [console.groq.com](https://console.groq.com) (open models, no card needed), or `ANTHROPIC_API_KEY` for Claude. Without a key the panels, payments and tests still work.
 
 To use **Paystack test mode** instead of the simulated provider, set `PAYSTACK_SECRET_KEY=sk_test_...`, then click **Link a test card** in the app and pay with one of Paystack's published test cards. Hela stores only the reusable authorization token, never card details.
 
@@ -59,11 +59,11 @@ Everything in one container: `docker compose --profile app up --build`.
 ## Tests and evidence
 
 ```bash
-npm test               # 97 tests: maths, every policy check, payments, audit tampering, agent journeys, API controls
+npm test               # 108 tests: maths, every policy check, payments, audit tampering, agent journeys, API controls
 npm run evidence       # runs 12 payment scenarios in the sandbox → evidence/sandbox-log.md
 ```
 
-`npm test` needs the database running. It uses a separate `hela_test` database. With a Claude key set, `npm run evidence` also records five live agent turns, one of them a prompt-injection attempt.
+`npm test` needs the database running. It uses a separate `hela_test` database. With a model key set, `npm run evidence` also records five live agent turns, one of them a prompt-injection attempt.
 
 | Test file | What it proves |
 |---|---|
@@ -80,7 +80,7 @@ npm run evidence       # runs 12 payment scenarios in the sandbox → evidence/s
 
 ```
 server/src/
-  agent/       orchestrator (Claude tool loop), tools, system prompt, model categoriser
+  agent/       orchestrator (tool loop), Claude and Groq model adapters, tools, system prompt, categoriser
   policy/      the policy engine (pure function)
   audit/       hash-chained audit log
   domain/      money, fx, remittance, tuition, budget, credit (pure, tested)
@@ -93,7 +93,12 @@ evidence/      generated sandbox logs and audit export
 
 ## Model
 
-The agent uses Claude (`claude-opus-5-5` by default; set `HELA_MODEL` to change it) through the official Anthropic SDK, with tool use, adaptive thinking, prompt caching of the fixed system prompt, and server-side refusal fallback. Every number the student sees comes from a tool. The model never does money arithmetic.
+Hela works with two providers behind one interface ([server/src/agent/model.ts](server/src/agent/model.ts)):
+
+- **Open models on Groq's free tier**: `openai/gpt-oss-120b` by default (`HELA_GROQ_MODEL` to change it). The adapter translates to Groq's OpenAI-compatible API, sends only the last three turns, and waits out the free tier's per-minute limit, telling the student while it waits. The free tier allows about 8,000 tokens a minute, so leave roughly a minute between demo questions.
+- **Claude**: `claude-opus-5-5` by default (`HELA_MODEL`), through the official Anthropic SDK, with tool use, adaptive thinking, prompt caching and server-side refusal fallback. It's used whenever `ANTHROPIC_API_KEY` is set (`HELA_MODEL_PROVIDER` forces one).
+
+Either way, each message carries a summary of balances, bills and approved payees, every number the student sees comes from a tool, and the policy engine, not the model, decides every payment. `npm run live-check -- "Plan my spring tuition"` runs prompts against the configured model and prints tools, time and tokens.
 
 ## Licence
 

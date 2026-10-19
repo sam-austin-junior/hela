@@ -49,6 +49,7 @@ export interface AuditEntry { seq: number; at: string; kind: string; data: Recor
 export interface ChainCheck { ok: boolean; entries: number; headHash: string; firstBrokenSeq?: number; problem?: string }
 export type TurnStep =
   | { type: 'thinking' }
+  | { type: 'waiting'; seconds: number }
   | { type: 'tool_start'; name: string; kind: string }
   | { type: 'tool_end'; name: string; kind: string; ok: boolean };
 

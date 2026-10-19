@@ -5,7 +5,8 @@ import { clock } from '../clock.js';
 import { audit } from '../audit/log.js';
 import { TIER_NAMES } from '../policy/engine.js';
 import type { PaymentAdapter } from '../payments/adapter.js';
-import { getStudent } from '../services/data.js';
+import { getAccounts, getInvoices, getPayees, getStudent } from '../services/data.js';
+import { formatMinor } from '../domain/money.js';
 import type { ProposalView } from '../services/payments.js';
 import { API_TOOLS, runTool, TOOL_KIND, type ToolContext } from './tools.js';
 import { SYSTEM_PROMPT } from './prompt.js';
@@ -15,7 +16,13 @@ type Message = Anthropic.Beta.BetaMessage;
 
 /** The one call the orchestrator makes to the model; swapped for a script in tests. */
 export interface ModelClient {
-  create(params: { system: string; tools: Anthropic.Tool[]; messages: MessageParam[] }): Promise<Message>;
+  create(params: {
+    system: string;
+    tools: Anthropic.Tool[];
+    messages: MessageParam[];
+    /** Lets a provider report progress, such as waiting out a rate limit. */
+    onEvent?: (e: TurnEvent) => void;
+  }): Promise<Message>;
 }
 
 export function anthropicModel(client: Pick<Anthropic, 'beta'> = new Anthropic()): ModelClient {
@@ -51,6 +58,7 @@ export function anthropicModel(client: Pick<Anthropic, 'beta'> = new Anthropic()
 /** Progress a turn reports while it runs, for the app to show live. */
 export type TurnEvent =
   | { type: 'thinking' }
+  | { type: 'waiting'; seconds: number }
   | { type: 'tool_start'; name: string; kind: string }
   | { type: 'tool_end'; name: string; kind: string; ok: boolean };
 
@@ -76,6 +84,40 @@ async function saveHistory(db: Db, studentId: string, messages: MessageParam[]) 
   );
 }
 
+/**
+ * Facts from storage that ride along with each message, so the model rarely
+ * needs a round trip to look them up. It cannot change any of them.
+ */
+// Common Kiswahili words. Detecting the language in code is more reliable
+// than asking every model to notice it.
+const KISWAHILI = /\b(nisaidie|tafadhali|yangu|wangu|karo|pesa|nini|ninataka|naomba|lipa|kulipa|bajeti|asante|habari|je|ya|kwa|na|ni)\b/gi;
+
+export function replyLanguage(text: string): 'Kiswahili' | null {
+  const hits = text.match(KISWAHILI)?.length ?? 0;
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return hits >= 2 || (words <= 4 && hits >= 1) ? 'Kiswahili' : null;
+}
+
+export async function buildContext(db: Db, studentId: string, userText = ''): Promise<string> {
+  const student = (await getStudent(db, studentId))!;
+  const accounts = await getAccounts(db, studentId);
+  const kes = accounts.filter((a) => a.currency === 'KES').reduce((s, a) => s + a.balanceMinor, 0);
+  const bills = (await getInvoices(db, studentId))
+    .filter((i) => i.status === 'open')
+    .map((i) => `${i.id}=${i.issuer}, ${formatMinor(i.amountMinor, i.currency)} (amount_decimal ${(i.amountMinor / 100).toFixed(2)}), due ${i.dueDate}, payee_id ${i.payeeId}`);
+  const payees = (await getPayees(db, studentId)).filter((p) => p.approved).map((p) => `${p.id}=${p.name} (${p.currency})`);
+  return [
+    '<context>',
+    `today=${clock.today()}; tier=${student.tier} (${TIER_NAMES[student.tier]}); first_name=${student.firstName}`,
+    `balance_total=${formatMinor(kes, 'KES')}`,
+    `open_bills: ${bills.join(' | ') || 'none'}`,
+    `approved_payees: ${payees.join(' | ') || 'none'}`,
+    'bill_texts: not shown here; call list_invoices to read what a bill says',
+    ...(replyLanguage(userText) ? [`reply_language=${replyLanguage(userText)} (write the whole reply in it)`] : []),
+    '</context>',
+  ].join('\n');
+}
+
 export async function resetConversation(db: Db, studentId: string) {
   await db.query('DELETE FROM conversations WHERE student_id = $1', [studentId]);
 }
@@ -94,16 +136,26 @@ export async function runTurn(
 
   const messages = await loadHistory(db, studentId);
   // Facts from storage ride along with each message; the model cannot change them.
-  const context = `<context>today=${clock.today()}; tier=${student.tier} (${TIER_NAMES[student.tier]})</context>`;
+  const context = await buildContext(db, studentId, userText);
   messages.push({ role: 'user', content: [{ type: 'text', text: `${context}\n${userText}` }] });
 
   const ctx: ToolContext = { db, adapter, studentId, proposals: [], schedules: [] };
   const tools: TurnResult['tools'] = [];
   let reply = '';
+  let emptyRetries = 0;
 
   for (let step = 0; step < MAX_STEPS; step++) {
     onEvent({ type: 'thinking' });
-    const res = await model.create({ system: SYSTEM_PROMPT, tools: API_TOOLS, messages });
+    const res = await model.create({ system: SYSTEM_PROMPT, tools: API_TOOLS, messages, onEvent });
+
+    // Some models occasionally return nothing at all. Ask again once rather
+    // than show the student an empty answer.
+    const hasText = res.content.some((b) => b.type === 'text' && b.text.trim() !== '');
+    const hasCall = res.content.some((b) => b.type === 'tool_use');
+    if (!hasText && !hasCall && res.stop_reason !== 'refusal' && emptyRetries < 1) {
+      emptyRetries++;
+      continue;
+    }
 
     if (res.stop_reason === 'refusal') {
       await audit(db, { studentId, kind: 'model_refusal', data: { category: res.stop_details?.category ?? null } });
@@ -141,7 +193,7 @@ export async function runTurn(
     messages.push({ role: 'user', content: results });
   }
 
-  if (!reply) reply = 'I ran out of steps on that one. Could you ask it a different way?';
+  if (!reply) reply = 'Sorry, I could not finish that one. Could you ask it a different way?';
   await saveHistory(db, studentId, messages);
   return { reply, proposals: ctx.proposals, schedules: ctx.schedules, tools };
 }
