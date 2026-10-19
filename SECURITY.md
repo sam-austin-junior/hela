@@ -91,8 +91,8 @@ Rated for the demo as built. L = likelihood, I = impact, each Low, Medium or Hig
 | R9 | **No CSRF tokens.** JSON-only endpoints and the absence of CORS headers limit cross-site requests, but there is no explicit token. | L | M | SameSite cookies with CSRF tokens once sessions exist. |
 | R10 | **Sandbox data.** Exchange rates are a seeded random walk and fee tables are illustrative, so plans would be wrong with real money. | — | M | Licensed rate and fee feeds, with the source and date shown, as now. |
 | R11 | **Dependencies.** We rely on npm packages. `npm audit` reports 0 known vulnerabilities today, but there is no automated scanning. | L | M | Dependabot or a similar scanner, plus pinned versions in CI. |
-| R13 | **Open models are less dependable.** On the free Groq tier the model sometimes mentions internal ids or does small sums itself, and per-minute limits slow replies. Payments are unaffected: the policy engine decides. | M | L | Use Claude, or a paid tier, for production; keep the evaluation set (R12) running against whichever model is used. |
 | R12 | **The model's live behaviour is not yet evaluated.** Tests use a scripted model. Real-model injection runs are recorded by `npm run evidence` only when an API key is set. | M | M | A recurring evaluation set of injection and refusal prompts against the live model. |
+| R13 | **Open models are less dependable.** On the free Groq tier the model sometimes mentions internal ids or does small sums itself, and per-minute limits slow replies. Payments are unaffected: the policy engine decides. | M | L | Use Claude, or a paid tier, for production; keep the evaluation set (R12) running against whichever model is used. |
 
 ## 6. How to verify
 
